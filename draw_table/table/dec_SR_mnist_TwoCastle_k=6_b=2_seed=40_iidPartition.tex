@@ -1,0 +1,30 @@
+\begin{table*}[!thbp]
+% \tiny
+% \footnotesize
+\normalsize
+\centering
+% \hspace{-1cm}
+\caption{Accuracy (Acc.) and Consensus Error (CE) in Two Castles Graph in i.i.d. cases.}
+\label{table:two-castle-iid}
+\setlength{\tabcolsep}{1.3mm}{
+\begin{tabular}{c|cc|cc|cc|cc|cc}
+\hline\hline
+\multirow{2}{*}{}&\multicolumn{2}{c|}{no attack}&\multicolumn{2}{c|}{Gaussian}&\multicolumn{2}{c|}{sign-flipping}&\multicolumn{2}{c|}{isolation}&\multicolumn{2}{c}{sample-duplicating}\\
+& Acc.(\%) & CE & Acc.(\%) & CE & Acc.(\%) & CE & Acc.(\%) & CE & Acc.(\%) & CE \\
+\hline
+no comm. & 89.66 & $>$1e-01 & -- & --  & -- & --  & -- & --  & -- & -- \\
+\hline
+WeiMean & {91.41} & {2e-08} & {10.27} & {$>$1e-01} & {14.88} & {1e-07} & {89.66} & {$>$1e-01} & {91.50} & {3e-08}\\
+CooMed & {91.13} & {2e-08} & {91.45} & {7e-16} & {86.20} & {6e-08} & {91.12} & {1e-07} & {91.16} & {1e-07}\\
+GeoMed & {91.33} & {6e-09} & {91.45} & {9e-15} & {86.21} & {2e-08} & {89.66} & {$>$1e-01} & {91.38} & {6e-08}\\
+Krum & {89.78} & {1e-07} & {91.48} & {8e-16} & {89.72} & {1e-07} & {89.87} & {1e-07} & {90.15} & {6e-07}\\
+TriMean & {91.45} & {7e-09} & {91.48} & {4e-16} & {85.19} & {2e-08} & {91.30} & {1e-07} & {91.35} & {5e-08}\\
+DRSA & {91.46} & {3e-06} & {91.47} & {3e-06} & {89.48} & {7e-06} & {91.37} & {4e-04} & {91.47} & {2e-06}\\
+CC & {91.44} & {8e-09} & {91.44} & {2e-06} & {23.71} & {1e-07} & {91.36} & {6e-06} & {91.44} & {3e-08}\\
+SCC & {91.49} & {1e-08} & {91.49} & {2e-06} & {23.71} & {1e-07} & {91.38} & {6e-06} & {91.50} & {3e-08}\\
+FABA & {91.46} & {8e-09} & {91.52} & {2e-16} & {91.46} & {7e-09} & {91.50} & {8e-09} & {91.39} & {8e-08}\\
+\textbf{IOS (ours)} & {91.48} & {2e-08} & {91.50} & {8e-09} & {91.50} & {8e-09} & {91.50} & {8e-09} & {91.39} & {6e-08}\\
+\hline\hline
+\end{tabular}
+}
+\end{table*}
