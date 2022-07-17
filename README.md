@@ -8,7 +8,7 @@ This hub stores the code for paper *Byzantine-Resilient Decentralized Stochastic
 - matplotlib 3.3.4
 - networkx 2.5.1
 
-2. Download the dataset to the file folder `./dataset` and create a file folder named `./cache`. The experiment output will be stored in `./cache`.
+2. Download the dataset to the directory `./dataset` and create a directory named `./record`. The experiment outputs will be stored in `./record`.
 
 - *MNIST*: [http://yann.lecun.com/exdb/mnist/](http://yann.lecun.com/exdb/mnist/)
 
@@ -76,7 +76,7 @@ python "main RSA.py" --graph <graph-name> --attack <attack-name> --data-partitio
 ---
 
 
-## batch Running
+## Batch Running
 ```bash
 # Table II-III
 python run-twocastle.py
