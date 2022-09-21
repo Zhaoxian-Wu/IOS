@@ -181,6 +181,8 @@ elif args.attack == 'zero_value':
 elif args.attack == 'alie':
     attack = D_alie(graph)
     # D_alie(graph, scale=2)
+else:
+    assert False, 'unknown attack'
 
 if args.attack == 'none':
     attack_name = 'baseline'
