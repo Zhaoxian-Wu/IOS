@@ -129,7 +129,8 @@ class ByzantineEnvironment(IterativeEnvironment):
         dist_dataset = DistributedDataSets(dataset=dataset, 
                                            partition_cls=partition_cls,
                                            nodes=self.nodes,
-                                           honest_nodes=self.honest_nodes)
+                                           honest_nodes=self.honest_nodes,
+                                           rng_pack=self.rng_pack)
         self.partition_name = dist_dataset.partition.name
         self.dist_dataset = dist_dataset
         

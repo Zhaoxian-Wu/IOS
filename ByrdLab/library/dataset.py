@@ -1,5 +1,5 @@
 import ByrdLab
-from ByrdLab.library.RandomNumberGenerator import torch_rng
+from ByrdLab.library.RandomNumberGenerator import RngPackage, torch_rng
 import random
 import re
 import os
@@ -219,11 +219,12 @@ class LogisticRegressionToySet(Dataset):
 
     
 class DistributedDataSets():
-    def __init__(self, dataset, partition_cls, nodes, honest_nodes):
-        
+    def __init__(self, dataset, partition_cls, nodes, honest_nodes,
+                 rng_pack: RngPackage=RngPackage()):
         self.dataset = dataset
         
-        self.partition = partition_cls(dataset, len(honest_nodes))
+        self.partition = partition_cls(dataset, len(honest_nodes),
+                                       rng_pack=rng_pack)
         honest_subsets = self.partition.get_subsets(dataset)
         
         # allocate the partitions to all nodes

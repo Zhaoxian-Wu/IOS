@@ -1,9 +1,9 @@
+from ByrdLab.library.RandomNumberGenerator import RngPackage
 from ByrdLab.library.dataset import Dataset
 
 class Partition():
-    def __init__(self, name, partition):
+    def __init__(self, name, rng_pack: RngPackage=RngPackage()):
         self.name = name
-        self.partition = partition
     def get_subsets(self, dataset):
         '''
         return all subsets of dataset
@@ -15,7 +15,10 @@ class Partition():
         return len(self.partition)
     
     
-class horizotalPartition(Partition):
+class HorizotalPartition(Partition):
+    def __init__(self, name, partition):
+        self.partition = partition
+        super(HorizotalPartition, self).__init__(name, partition)
     def get_subsets(self, dataset):
         return [
             Dataset(f'{dataset.name}_{i}',
@@ -24,14 +27,14 @@ class horizotalPartition(Partition):
         ]
         
     
-class EmptyPartition(horizotalPartition):
-    def __init__(self, dataset, node_cnt):
+class EmptyPartition(HorizotalPartition):
+    def __init__(self, dataset, node_cnt, rng_pack: RngPackage=RngPackage()):
         partition = [[] for _ in range(node_cnt)]
         super(EmptyPartition, self).__init__('EmptyPartition', partition)
     
     
-class TrivalPartition(horizotalPartition):
-    def __init__(self, dataset, node_cnt) -> None:
+class TrivalPartition(HorizotalPartition):
+    def __init__(self, dataset, node_cnt, *args, **kw) -> None:
         # data seperation, with the form of [d(0), d(1), d(2), ..., d(n)]
         # Node i have the dataset indexed by [d(i), d(i+1))
         seperation = [(i*len(dataset)) // node_cnt for i in range(node_cnt+1)]
@@ -42,11 +45,12 @@ class TrivalPartition(horizotalPartition):
                                 for i in range(node_cnt)]
         super(TrivalPartition, self).__init__('TrivalDist', partition)
 
-class iidPartition(horizotalPartition):
-    def __init__(self, dataset, node_cnt) -> None:
+class iidPartition(HorizotalPartition):
+    def __init__(self, dataset, node_cnt, rng_pack: RngPackage=RngPackage()) -> None:
         # data seperation, with the form of [d(0), d(1), d(2), ..., d(n)]
         # Node i have the dataset indexed by [d(i), d(i+1))
         indexes = list(range(len(dataset)))
+        rng_pack.random.shuffle(indexes)
         sep = [(i*len(dataset)) // node_cnt for i in range(node_cnt+1)]
         # data partition, with the form of 
         # [[l(0), r(0)], [l(1), r(1)], ..., [l(n), r(n)]]
@@ -55,19 +59,19 @@ class iidPartition(horizotalPartition):
                                 for node in range(node_cnt)]
         super(iidPartition, self).__init__('iidPartition', partition)
 
-class SharedData(horizotalPartition):
-    def __init__(self, dataset, node_cnt) -> None:
+class SharedData(HorizotalPartition):
+    def __init__(self, dataset, node_cnt, *args, **kw) -> None:
         partition = [list(range(len(dataset)))] * node_cnt
         super(SharedData, self).__init__('SharedData', partition)
         
-class LabelSeperation(horizotalPartition):
-    def __init__(self, dataset, node_cnt):
+class LabelSeperation(HorizotalPartition):
+    def __init__(self, dataset, node_cnt, *args, **kw):
         partition = [[] for _ in range(node_cnt)]
         for i, (_, label) in enumerate(dataset):
             partition[label % node_cnt].append(i)
         super(LabelSeperation, self).__init__('LabelSeperation', partition)
         
-class verticalPartition(Partition):
+class VerticalPartition(Partition):
     def __init__(self, dataset, node_cnt) -> None:
         # data seperation, with the form of [d(0), d(1), d(2), ..., d(n)]
         # Node i have the dataset indexed by [d(i), d(i+1))
