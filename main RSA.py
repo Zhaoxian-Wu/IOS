@@ -21,8 +21,6 @@ parser.add_argument('--attack', type=str, default='none')
 parser.add_argument('--data-partition', type=str, default='iid')
 parser.add_argument('--lr-ctrl', type=str, default='1/sqrt k')
 
-parser.add_argument('--penalty', type=float, default=0.5)
-
 parser.add_argument('--fix-seed', type=bool, default=True)
 parser.add_argument('--seed', type=int, default=100)
 
