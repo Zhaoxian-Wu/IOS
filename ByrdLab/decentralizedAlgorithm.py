@@ -26,7 +26,7 @@ class DSGD(DecentralizedByzantineEnvironment):
             self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
             
     def run(self):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         dist_models = DistributedModule(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
@@ -46,7 +46,7 @@ class DSGD(DecentralizedByzantineEnvironment):
         # train_accuracy = 0
         # total_sample = 0
         data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
-                                          rng=self.rng) 
+                                          rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
         for iteration in range(0, self.total_iterations + 1):
@@ -112,7 +112,7 @@ class DSGD(DecentralizedByzantineEnvironment):
                 # Byzantine attack
                 byzantine_neighbors_size = self.graph.byzantine_sizes[node]
                 if self.attack != None and byzantine_neighbors_size != 0:
-                    self.attack.run(param_bf_comm, node)
+                    self.attack.run(param_bf_comm, node, self.rng_pack)
                 # aggregation
                 aggregation_res = self.aggregation.run(param_bf_comm, node)
                 dist_models.params_vec[node].copy_(aggregation_res)
@@ -128,7 +128,7 @@ class DSGD_AWC(DSGD):
         self.name = 'DSGD_AWC'
         self.aggregation = aggregation
     def run(self):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         dist_models = DistributedModule(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
@@ -152,7 +152,7 @@ class DSGD_AWC(DSGD):
         # train_accuracy = 0
         # total_sample = 0
         data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
-                                          rng=self.rng) 
+                                          rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
         for iteration in range(0, self.total_iterations + 1):
@@ -217,7 +217,7 @@ class DSGD_AWC(DSGD):
                 # Byzantine attack
                 byzantine_neighbors_size = self.graph.byzantine_sizes[node]
                 if self.attack != None and byzantine_neighbors_size != 0:
-                    self.attack.run(param_bf_comm, node)
+                    self.attack.run(param_bf_comm, node, self.rng_pack)
                 # aggregation
                 aggregation_res = self.aggregation.run(param_bf_comm, node)
                 dist_models.params_vec[node].data.copy_(aggregation_res)
@@ -234,7 +234,8 @@ class DSGD_AWC(DSGD):
       
 class RSA_algorithm(DecentralizedByzantineEnvironment):
     def __init__(self, graph, penalty=0.001, consensus_init=False, *args, **kw):
-        super(RSA_algorithm, self).__init__(name=f'RSA_lamb={penalty}', graph=graph, *args, **kw)
+        super(RSA_algorithm, self).__init__(name=f'RSA_lamb={penalty}',
+                                            graph=graph, *args, **kw)
         self.consensus_init = consensus_init
         self.lamb = penalty
     
@@ -248,7 +249,7 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
             self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
             
     def run(self):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         dist_models = DistributedModule(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
@@ -268,7 +269,7 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
         # train_accuracy = 0
         # total_sample = 0
         data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
-                                          rng=self.rng) 
+                                          rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
         for iteration in range(0, self.total_iterations + 1):
@@ -324,7 +325,7 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
                 # Byzantine attack
                 byzantine_neighbors_size = self.graph.byzantine_sizes[node]
                 if self.attack != None and byzantine_neighbors_size != 0:
-                    self.attack.run(param_bf_comm, node)
+                    self.attack.run(param_bf_comm, node, self.rng_pack)
                 # gradient descend
                 with torch.no_grad():
                     for param in model.parameters():
@@ -353,7 +354,7 @@ class Decentralized_gossip(DecentralizedByzantineEnvironment):
                                                    graph=graph, *args, **kw)
         self.aggregation = aggregation
     def run(self, init_local_models = None):
-        self.construct_rng()
+        self.construct_rng_pack()
         local_models = torch.zeros_like(init_local_models)
         local_models.copy_(init_local_models)
         init_ce = consensus_error(local_models, self.graph.honest_nodes)
@@ -394,7 +395,7 @@ class DSGD_inner_variation(DSGD):
             self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
             
     def run(self):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         dist_models = DistributedModule(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
@@ -414,7 +415,7 @@ class DSGD_inner_variation(DSGD):
         # train_accuracy = 0
         # total_sample = 0
         data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
-                                          rng=self.rng) 
+                                          rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
         for iteration in range(0, self.total_iterations + 1):
@@ -472,7 +473,7 @@ class DSGD_inner_variation(DSGD):
                             param.data.mul_(1 - self.weight_decay * lr)
                             param.data.sub_(param.grad, alpha=lr)
                             noise = torch.randn(param.size(), 
-                                                generator=self.torch_rng
+                                                generator=self.rng_pack.torch
                                     ) * self.inner_variation
                             param.data.add_(noise)
             # store the parameters before communication
@@ -484,7 +485,7 @@ class DSGD_inner_variation(DSGD):
                 # Byzantine attack
                 byzantine_neighbors_size = self.graph.byzantine_sizes[node]
                 if self.attack != None and byzantine_neighbors_size != 0:
-                    self.attack.run(param_bf_comm, node)
+                    self.attack.run(param_bf_comm, node, self.rng_pack)
                 # aggregation
                 aggregation_res = self.aggregation.run(param_bf_comm, node)
                 dist_models.params_vec[node].copy_(aggregation_res)

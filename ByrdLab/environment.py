@@ -5,7 +5,7 @@ import torch
 from ByrdLab.library.dataset import DistributedDataSets
 from ByrdLab.library.partition import TrivalPartition
 from ByrdLab.library.learnRateController import constant_lr
-from ByrdLab.library.RandomNumberGenerator import random_rng, torch_rng
+from ByrdLab.library.RandomNumberGenerator import RngPackage
 
 class IterativeEnvironment():
     def __init__(self, name, lr, lr_ctrl=None,
@@ -45,8 +45,7 @@ class IterativeEnvironment():
         self.total_iterations = total_iterations
         
         # random number generator
-        self.rng = random
-        self.torch_rng = torch.default_generator
+        self.rng_pack = RngPackage(seed=None)
         
         # learning rate controller
         if lr_ctrl is None:
@@ -55,11 +54,10 @@ class IterativeEnvironment():
             self.lr_ctrl = lr_ctrl
         self.lr_ctrl.set_init_lr(lr)
             
-    def construct_rng(self):
+    def construct_rng_pack(self):
         # construct random number generator
         if self.fix_seed:
-            self.rng = random_rng(self.seed)
-            self.torch_rng = torch_rng(self.seed)
+            self.rng_pack.set_seed(self.seed)
             
     def lr_path(self):
         return [self.lr_ctrl.get_lr(r * self.display_interval) 

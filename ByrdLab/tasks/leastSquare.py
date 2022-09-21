@@ -1,6 +1,6 @@
 from ByrdLab.library.dataset import Dataset
 from ByrdLab import FEATURE_TYPE, VALUE_TYPE
-from ByrdLab.library.RandomNumberGenerator import torch_rng
+from ByrdLab.library.RandomNumberGenerator import RngPackage, torch_rng
 from functools import partial
 
 import torch
@@ -17,7 +17,8 @@ class LeastSqaure_LinearModel(torch.nn.Module):
         features = features.view(features.size(0), -1)
         return self.linear(features)
 
-def train_full_batch_generator(dist_dataset, node, rng):
+def train_full_batch_generator(dist_dataset, node,
+                               rng_pack: RngPackage=RngPackage()):
     while True:
         yield dist_dataset[node][:]
         

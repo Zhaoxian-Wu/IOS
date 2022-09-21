@@ -1,6 +1,6 @@
 import random
 
-def local_sample(partition, node, rng=random):
+def local_sample(partition, node, rng_pack=random):
     '''
     node samples an index accroding to the partition
     @partition (list [list]): representing the data partition across all nodes.
@@ -16,9 +16,9 @@ def local_sample(partition, node, rng=random):
     if node == 2: return random.randint(7, 9)
     '''
     p = partition[node]
-    return rng.randint(p[0], p[1]-1)
+    return rng_pack.random.randint(p[0], p[1]-1)
 
-def local_batch_sample(partition, node, counts=1, rng=random):
+def local_batch_sample(partition, node, counts=1, rng_pack=random):
     '''
     similar to function "local_sample", except this function return a list 
         of sample
@@ -27,7 +27,7 @@ def local_batch_sample(partition, node, counts=1, rng=random):
     return: a list of sample index
     '''
     p = partition[node]
-    return [rng.randint(p[0], p[1]-1) for _ in range(counts)]
+    return [rng_pack.random.randint(p[0], p[1]-1) for _ in range(counts)]
 
 def local_dataset_iterator(partition, node):
     '''

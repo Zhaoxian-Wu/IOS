@@ -146,7 +146,7 @@ class CompleteGraph(Graph):
 
 class ErdosRenyi(Graph):
     def __init__(self, node_size, byzantine_size, connected_p=0.7, seed=None):
-        rng =  random if seed is None else random.Random(seed)
+        rng = random if seed is None else random.Random(seed)
         valid = False
         while not valid:
             graph = nx.fast_gnp_random_graph(node_size, connected_p, seed=rng)
@@ -170,7 +170,7 @@ class TwoCastle(Graph):
         assert k >= 3, 'k must be greater than or equal to 3'
         assert byzantine_size <= k - 2, 'byzantine_size must be less than or equal to k - 2'
         node_size = 2 * k
-        rng =  random if seed is None else random.Random(seed)
+        rng = random if seed is None else random.Random(seed)
         graph = nx.Graph()
         graph.add_nodes_from(range(node_size))
         # inner edges
@@ -195,7 +195,7 @@ class RingCastle(Graph):
     def __init__(self, castle_cnt, byzantine_size, seed=None):
         node_size = 4 * castle_cnt
         
-        rng =  random if seed is None else random.Random(seed)
+        rng = random if seed is None else random.Random(seed)
         graph = nx.Graph()
         graph.add_nodes_from(range(node_size))
         

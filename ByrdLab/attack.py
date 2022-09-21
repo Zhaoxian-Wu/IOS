@@ -5,6 +5,7 @@ import scipy.stats
 import torch
 
 from ByrdLab import FEATURE_TYPE
+from ByrdLab.library.RandomNumberGenerator import RngPackage
 from ByrdLab.library.tool import MH_rule
 
 def gaussian(messages, honest_nodes, byzantine_nodes, scale, torch_rng=None):
@@ -133,21 +134,21 @@ class decentralizedAttack():
     def __init__(self, name, graph):
         self.graph = graph
         self.name = name
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         raise NotImplementedError
     
 class D_gaussian(decentralizedAttack):
     def __init__(self, graph, scale=30):
         super(D_gaussian, self).__init__(name='gaussian', graph=graph)
         self.scale = scale
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         mu = torch.mean(local_models[honest_neighbors], dim=0)
         for n in byzantine_neigbors:
             local_models[n].copy_(mu)
             noise = torch.randn(local_models.size(1), 
-                                generator=torch_rng,
+                                generator=rng_pack.torch,
                                 dtype=FEATURE_TYPE)
             local_models[n].add_(noise, alpha=self.scale)
             
@@ -160,7 +161,7 @@ class D_sign_flipping(decentralizedAttack):
             name = f'sign_flipping_s={scale}'
         super(D_sign_flipping, self).__init__(name=name, graph=graph)
         self.scale = scale
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbor = self.graph.byzantine_neighbors[node]
         mu = torch.mean(local_models[honest_neighbors+[node]], dim=0)
@@ -171,7 +172,7 @@ class D_sign_flipping(decentralizedAttack):
 class D_zero_sum(decentralizedAttack):
     def __init__(self, graph):
         super(D_zero_sum, self).__init__(name='zero_sum', graph=graph)
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         melicious_message = get_dec_model_control(self.graph, local_models, node, 
                                                   torch.zeros_like(local_models[node]))
@@ -181,7 +182,7 @@ class D_zero_sum(decentralizedAttack):
 class D_zero_value(decentralizedAttack):
     def __init__(self, graph):
         super().__init__(name='zero_value', graph=graph)
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         for n in byzantine_neigbors:
             local_models[n].copy_(torch.zeros_like(local_models[node]))
@@ -204,7 +205,7 @@ def get_dec_model_control_weight(graph, messages, node, target_model, weight):
 class D_isolation(decentralizedAttack):
     def __init__(self, graph):
         super(D_isolation, self).__init__(name='isolation', graph=graph)
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         melicious_message = get_dec_model_control(self.graph, local_models, node, 
                                                   local_models[node])
@@ -215,7 +216,7 @@ class D_isolation_weight(decentralizedAttack):
     def __init__(self, graph):
         super().__init__(name='isolation_w', graph=graph)
         self.W = MH_rule(graph)
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         melicious_message = get_dec_model_control_weight(self.graph, 
                                                          local_models, node, 
@@ -228,10 +229,10 @@ class D_isolation_weight(decentralizedAttack):
 class D_sample_duplicate(decentralizedAttack):
     def __init__(self, graph):
         super().__init__(name='duplicate', graph=graph)
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
+        honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
-        duplicate_index = random.choice(self.graph.honest_neighbors[node], 
-                                        generator=torch_rng)
+        duplicate_index = rng_pack.random.choice(honest_neighbors)
         for n in byzantine_neigbors:
             local_models[n].copy_(local_models[duplicate_index])
         
@@ -254,7 +255,7 @@ class D_alie(decentralizedAttack):
                 self.scale_table[node] = scale
         else:
             self.scale_table = [scale] * self.graph.node_size
-    def run(self, local_models, node, torch_rng=None):
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         mu = torch.mean(local_models[honest_neighbors], dim=0)

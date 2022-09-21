@@ -21,8 +21,11 @@ def adapt_model_type(model):
         return model.half()
 
 # function decorator: fix seed
-# TODO: the 'construc_rng' function in class 'distributedOptimizer'
+# TODO: the 'construc_rng_pack' function in class 'distributedOptimizer'
 #      should consider GPU and cpu generators
+# Warning: having used in the code. Develops are recommanded to use the RngPack
+#          given in ByrdLab.library.RandomNumberGenerator to control the random
+#          seed
 def fix_seed(run):
     def wrapper(self, *args, **kw):
         # fit seed

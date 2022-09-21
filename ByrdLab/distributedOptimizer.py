@@ -13,7 +13,7 @@ class SGD(ByzantineEnvironment):
     def __init__(self, *args, **kw):
         super(SGD, self).__init__(name='SGD', *args, **kw)
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         w = w0.clone().detach()
         path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
@@ -31,7 +31,7 @@ class SGD(ByzantineEnvironment):
             for k in range(self.display_interval):
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.rng.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -65,7 +65,7 @@ class BatchSGD(ByzantineEnvironment):
         super(BatchSGD, self).__init__(name='BatchSGD', *args, **kw)
         self.batch_size = batch_size
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # 初始化
         w = w0.clone().detach()
 
@@ -87,7 +87,7 @@ class BatchSGD(ByzantineEnvironment):
                     gradient = torch.zeros_like(new_G)
                     
                     for _ in range(self.batch_size):
-                        x, y = self.rng.choice(self.dist_dataset[node])
+                        x, y = self.rng_pack.random.choice(self.dist_dataset[node])
                         # 更新梯度表
                         predict = logistic_regression(w, x)
                         err = (predict-y).data
@@ -118,7 +118,7 @@ class SAGA(ByzantineEnvironment):
     def __init__(self, *args, **kw):
         super(SAGA, self).__init__(name='SAGA', *args, **kw)
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         w = w0.clone().detach()
 
@@ -152,7 +152,7 @@ class SAGA(ByzantineEnvironment):
             for k in range(self.display_interval):
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.rng.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
 
@@ -192,7 +192,7 @@ class SVRG(ByzantineEnvironment):
         super(SVRG, self).__init__(name='SVRG', *args, **kw)
         self.snapshotInterval = snapshotInterval
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # 初始化
         w = w0.clone().detach()
 
@@ -228,7 +228,7 @@ class SVRG(ByzantineEnvironment):
                 # 诚实节点更新
                 message.zero_()
                 for node in range(self.honest_size):
-                    x, y = self.rng.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
                     # 随机梯度
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -267,7 +267,7 @@ class SARAH(ByzantineEnvironment):
         super(SARAH, self).__init__(name='SARAH', *args, **kw)
         self.snapshotInterval = snapshotInterval
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initilize
         w = w0.clone().detach()
 
@@ -311,12 +311,12 @@ class SARAH(ByzantineEnvironment):
                     lastw.copy_(w)
                     w.add_(g, alpha=-self.lr)
                     # 指定下一次停止时间
-                    randomStop = self.rng.randint(
+                    randomStop = self.rng_pack.random.randint(
                         1, self.snapshotInterval-1)
                 
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.rng.choice(self.dist_dataset[node])
+                    x, y = self.random.rng.random.choice(self.dist_dataset[node])
                     # 随机梯度
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -353,7 +353,7 @@ class ByrD2SAGA(ByzantineEnvironment):
     def __init__(self, *args, **kw):
         super(ByrD2SAGA, self).__init__(name='ByrD2SAGA', *args, **kw)
     def run(self, w0):
-        self.construct_rng()
+        self.construct_rng_pack()
         # initialize
         w = w0.clone().detach()
 
@@ -391,7 +391,7 @@ class ByrD2SAGA(ByzantineEnvironment):
                 message[:self.honest_size].mul_(-1)
                 message[:self.honest_size].add_(g)
                 for node in range(self.honest_size):
-                    x, y = self.rng.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.choice(self.dist_dataset[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
 

@@ -2,6 +2,7 @@ import random
 from functools import partial
 
 import torch
+from ByrdLab.library.RandomNumberGenerator import RngPackage
 
 from ByrdLab.library.initialize import RandomInitialize
 from ByrdLab.library.tool import adapt_model_type
@@ -21,9 +22,9 @@ def softmax_regression_loss(predictions, targets):
                 predictions, targets.type(torch.long).view(-1))
     return loss
 
-def random_generator(dataset, batch_size=1, rng=random):
+def random_generator(dataset, batch_size=1, rng_pack: RngPackage=RngPackage()):
     while True:
-        beg = rng.randint(0, len(dataset)-1)
+        beg = rng_pack.random.randint(0, len(dataset)-1)
         if beg+batch_size <= len(dataset):
             yield dataset[beg:beg+batch_size]
         else:
@@ -31,14 +32,14 @@ def random_generator(dataset, batch_size=1, rng=random):
                                     dataset[0:(beg+batch_size) % len(dataset)])
             yield torch.cat(features), torch.cat(targets)
         
-def order_generator(dataset, batch_size=1, rng=random):
+def order_generator(dataset, batch_size=1, rng_pack: RngPackage=RngPackage()):
     beg = 0
     while beg < len(dataset):
         end = min(beg+batch_size, len(dataset))
         yield dataset[beg:end]
         beg += batch_size
         
-def full_generator(dataset, rng=random):
+def full_generator(dataset, rng_pack: RngPackage=RngPackage()):
     while True:
         yield dataset[:]
 

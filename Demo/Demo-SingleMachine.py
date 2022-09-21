@@ -1,4 +1,4 @@
-from ByrdLab.library.RandomNumberGenerator import random_rng
+from ByrdLab.library.RandomNumberGenerator import RngPackage, random_rng
 
 import torch
 from ByrdLab.library.learnRateController import one_over_sqrt_k_lr
@@ -26,7 +26,7 @@ rounds = task.super_params['rounds']
 total_iterations = display_interval * rounds
 get_train_iter = task.get_train_iter
 get_val_iter = task.get_val_iter
-rng = random_rng(100)
+rng_pack = RngPackage()
 
 # log formatter
 num_len = len(str(total_iterations))
@@ -37,7 +37,7 @@ hint = '[SGD]' + num_format + '/{} iterations ({:>6.2f}%) ' + \
 # train_accuracy = 0
 # total_sample = 0
 
-data_iter = get_train_iter(dataset=dataset, rng=rng)
+data_iter = get_train_iter(dataset=dataset, rng_pack=rng_pack)
 for iteration in range(0, total_iterations + 1):
     # lastest learning rate
     lr = lr_ctrl.get_lr(iteration)
