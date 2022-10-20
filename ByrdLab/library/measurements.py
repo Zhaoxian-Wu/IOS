@@ -7,12 +7,13 @@ def consensus_error(local_models, honest_nodes):
                      dim=0, unbiased=False).norm().item()
     
 @torch.no_grad()
-def avg_loss_accuracy(model, val_iter, loss_fn, weight_decay):
+def avg_loss_accuracy(model, get_val_iter, loss_fn, weight_decay):
     loss = 0
     accuracy = 0
     total_sample = 0
     
     # evaluation
+    val_iter = get_val_iter()
     for features, targets in val_iter:
         predictions = model(features)
         loss = loss_fn(predictions, targets)
@@ -28,7 +29,7 @@ def avg_loss_accuracy(model, val_iter, loss_fn, weight_decay):
     return loss_avg, accuracy_avg
 
 @torch.no_grad()
-def avg_loss_accuracy_dec(dist_models, val_iter, loss_fn, weight_decay,
+def avg_loss_accuracy_dec(dist_models, get_val_iter, loss_fn, weight_decay,
                           node_list=None):
     loss = 0
     accuracy = 0
@@ -42,6 +43,7 @@ def avg_loss_accuracy_dec(dist_models, val_iter, loss_fn, weight_decay,
     for node in node_list:
         dist_models.activate_model(node)
         model = dist_models.model
+        val_iter = get_val_iter()
         for features, targets in val_iter:
             predictions = model(features)
             loss += loss_fn(predictions, targets).item()
@@ -58,11 +60,12 @@ def avg_loss_accuracy_dec(dist_models, val_iter, loss_fn, weight_decay,
     return loss_avg, accuracy_avg
 
 @torch.no_grad()
-def avg_residual(model, val_iter, loss_fn, weight_decay):
+def avg_residual(model, get_val_iter, loss_fn, weight_decay):
     residual = 0
     total_sample = 0
     
     # evaluation
+    val_iter = get_val_iter()
     for features, targets in val_iter:
         predictions = model(features)
         residual = loss_fn(predictions, targets)

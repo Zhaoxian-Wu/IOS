@@ -58,10 +58,9 @@ class DSGD(DecentralizedByzantineEnvironment):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_iter = self.get_val_iter()
                 val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, val_iter, self.loss_fn, weight_decay=0,
-                    node_list=self.honest_nodes)
+                    dist_models, self.get_val_iter, self.loss_fn, 
+                    weight_decay=0, node_list=self.honest_nodes)
                 
                 loss_path.append(val_loss)
                 acc_path.append(val_accuracy)
@@ -164,10 +163,9 @@ class DSGD_AWC(DSGD):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_iter = self.get_val_iter()
                 val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, val_iter, self.loss_fn, weight_decay=0,
-                    node_list=self.honest_nodes)
+                    dist_models, self.get_val_iter, self.loss_fn,
+                    weight_decay=0, node_list=self.honest_nodes)
                 
                 loss_path.append(val_loss)
                 acc_path.append(val_accuracy)
@@ -281,10 +279,9 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_iter = self.get_val_iter()
                 val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, val_iter, self.loss_fn, weight_decay=0,
-                    node_list=self.honest_nodes)
+                    dist_models, self.get_val_iter, self.loss_fn,
+                    weight_decay=0, node_list=self.honest_nodes)
                 
                 loss_path.append(val_loss)
                 acc_path.append(val_accuracy)
@@ -427,9 +424,8 @@ class DSGD_inner_variation(DSGD):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_iter = self.get_val_iter()
                 val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, val_iter, self.loss_fn, weight_decay=0,
+                    dist_models, self.get_val_iter, self.loss_fn, weight_decay=0,
                     node_list=self.honest_nodes)
                 
                 loss_path.append(val_loss)
