@@ -63,9 +63,8 @@ for iteration in range(0, total_iterations + 1):
         # train_loss_avg = train_loss / total_sample
         # train_accuracy_avg = train_accuracy / total_sample
         # TODO: training loss -> val loss
-        val_iter = get_val_iter()
         train_loss, train_accuracy = avg_loss_accuracy(
-            model, val_iter, loss_fn, weight_decay=0)
+            model, get_val_iter, loss_fn, weight_decay=0)
         
         log(hint.format(
             iteration, total_iterations,
