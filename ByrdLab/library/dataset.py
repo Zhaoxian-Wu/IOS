@@ -187,9 +187,9 @@ class mnist(torchDataset):
         ])
         root = 'dataset'
         torch_train_dataset = MNIST(root=root, train=True,
-                                    transform=transform, download=False)
+                                    transform=transform, download=True)
         torch_val_dataset = MNIST(root=root, train=False,
-                                  transform=transform, download=False)
+                                  transform=transform, download=True)
         super().__init__('mnist', torch_train_dataset, torch_val_dataset)
 
 class LogisticRegressionToySet(Dataset):
