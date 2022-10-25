@@ -25,7 +25,7 @@ display_interval = task.super_params['display_interval']
 rounds = task.super_params['rounds']
 total_iterations = display_interval * rounds
 get_train_iter = task.get_train_iter
-get_val_iter = task.get_val_iter
+get_test_iter = task.get_test_iter
 rng_pack = RngPackage()
 
 # log formatter
@@ -48,7 +48,7 @@ for iteration in range(0, total_iterations + 1):
         # train_accuracy_avg = train_accuracy / total_sample
         # TODO: training loss -> val loss
         train_loss, train_accuracy = avg_loss_accuracy(
-            model, get_val_iter, loss_fn, weight_decay=0)
+            model, get_test_iter, loss_fn, weight_decay=0)
         
         log(hint.format(
             iteration, total_iterations,

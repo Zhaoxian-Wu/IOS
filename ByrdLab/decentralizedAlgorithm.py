@@ -6,7 +6,7 @@ from ByrdLab.library.dataset import EmptySet
 from ByrdLab.DistributedModule import DistributedModule
 from ByrdLab.library.partition import EmptyPartition
 
-from .library.measurements import avg_loss_accuracy_dec, consensus_error
+from .library.measurements import avg_loss_accuracy_dist, consensus_error
 from .library.tool import log
 
 # alternative: Apatation & Combination
@@ -45,7 +45,7 @@ class DSGD(DecentralizedByzantineEnvironment):
         # train_loss = 0
         # train_accuracy = 0
         # total_sample = 0
-        data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
+        data_iters = [self.get_train_iter(dataset=self.dist_train_set[node],
                                           rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
@@ -58,12 +58,13 @@ class DSGD(DecentralizedByzantineEnvironment):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, self.get_val_iter, self.loss_fn, 
+                test_loss, test_accuracy = avg_loss_accuracy_dist(
+                    dist_models, self.get_test_iter,
+                    self.loss_fn, self.test_fn,
                     weight_decay=0, node_list=self.honest_nodes)
                 
-                loss_path.append(val_loss)
-                acc_path.append(val_accuracy)
+                loss_path.append(test_loss)
+                acc_path.append(test_accuracy)
                 
                 ce = consensus_error(dist_models.params_vec,
                                      self.graph.honest_nodes)
@@ -71,7 +72,7 @@ class DSGD(DecentralizedByzantineEnvironment):
                 log(hint.format(
                     iteration, self.total_iterations,
                     iteration / self.total_iterations * 100,
-                    val_loss, val_accuracy, ce, lr
+                    test_loss, test_accuracy, ce, lr
                 ))
                 # reset the record
                 # train_loss_avg = 0
@@ -122,8 +123,8 @@ class DSGD(DecentralizedByzantineEnvironment):
     
 # Adaptation While Combination
 class DSGD_AWC(DSGD):
-    def __init__(self, graph, aggregation, consensus_init=False, eval_p=-1, *args, **kw):
-        super().__init__(graph, consensus_init, eval_p, *args, **kw)
+    def __init__(self, graph, aggregation, consensus_init=False, *args, **kw):
+        super().__init__(graph, consensus_init, *args, **kw)
         self.name = 'DSGD_AWC'
         self.aggregation = aggregation
     def run(self):
@@ -150,7 +151,7 @@ class DSGD_AWC(DSGD):
         # train_loss = 0
         # train_accuracy = 0
         # total_sample = 0
-        data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
+        data_iters = [self.get_train_iter(dataset=self.dist_train_set[node],
                                           rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
@@ -163,12 +164,13 @@ class DSGD_AWC(DSGD):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, self.get_val_iter, self.loss_fn,
+                test_loss, test_accuracy = avg_loss_accuracy_dist(
+                    dist_models, self.get_test_iter, 
+                    self.loss_fn, self.test_fn,
                     weight_decay=0, node_list=self.honest_nodes)
                 
-                loss_path.append(val_loss)
-                acc_path.append(val_accuracy)
+                loss_path.append(test_loss)
+                acc_path.append(test_accuracy)
                 
                 ce = consensus_error(dist_models.params_vec,
                                      self.graph.honest_nodes)
@@ -176,7 +178,7 @@ class DSGD_AWC(DSGD):
                 log(hint.format(
                     iteration, self.total_iterations,
                     iteration / self.total_iterations * 100,
-                    val_loss, val_accuracy, ce, lr
+                    test_loss, test_accuracy, ce, lr
                 ))
                 # reset the record
                 # train_loss_avg = 0
@@ -266,7 +268,7 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
         # train_loss = 0
         # train_accuracy = 0
         # total_sample = 0
-        data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
+        data_iters = [self.get_train_iter(dataset=self.dist_train_set[node],
                                           rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
@@ -279,12 +281,13 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, self.get_val_iter, self.loss_fn,
+                test_loss, test_accuracy = avg_loss_accuracy_dist(
+                    dist_models, self.get_test_iter,
+                    self.loss_fn, self.test_fn,
                     weight_decay=0, node_list=self.honest_nodes)
                 
-                loss_path.append(val_loss)
-                acc_path.append(val_accuracy)
+                loss_path.append(test_loss)
+                acc_path.append(test_accuracy)
                 
                 ce = consensus_error(dist_models.params_vec,
                                      self.graph.honest_nodes)
@@ -292,7 +295,7 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
                 log(hint.format(
                     iteration, self.total_iterations,
                     iteration / self.total_iterations * 100,
-                    val_loss, val_accuracy, ce, lr
+                    test_loss, test_accuracy, ce, lr
                 ))
                 # reset the record
                 # train_loss_avg = 0
@@ -411,7 +414,7 @@ class DSGD_inner_variation(DSGD):
         # train_loss = 0
         # train_accuracy = 0
         # total_sample = 0
-        data_iters = [self.get_train_iter(dataset=self.dist_dataset[node],
+        data_iters = [self.get_train_iter(dataset=self.dist_train_set[node],
                                           rng_pack=self.rng_pack) 
                       if node in self.honest_nodes else None
                       for node in self.nodes]
@@ -424,12 +427,13 @@ class DSGD_inner_variation(DSGD):
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
                 # TODO: training loss -> val loss
-                val_loss, val_accuracy = avg_loss_accuracy_dec(
-                    dist_models, self.get_val_iter, self.loss_fn, weight_decay=0,
+                test_loss, test_accuracy = avg_loss_accuracy_dist(
+                    dist_models, self.get_test_iter, 
+                    self.loss_fn, self.test_fn, weight_decay=0,
                     node_list=self.honest_nodes)
                 
-                loss_path.append(val_loss)
-                acc_path.append(val_accuracy)
+                loss_path.append(test_loss)
+                acc_path.append(test_accuracy)
                 
                 ce = consensus_error(dist_models.params_vec,
                                      self.graph.honest_nodes)
@@ -437,7 +441,7 @@ class DSGD_inner_variation(DSGD):
                 log(hint.format(
                     iteration, self.total_iterations,
                     iteration / self.total_iterations * 100,
-                    val_loss, val_accuracy, ce, lr
+                    test_loss, test_accuracy, ce, lr
                 ))
                 # reset the record
                 # train_loss_avg = 0

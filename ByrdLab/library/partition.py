@@ -1,12 +1,20 @@
 from ByrdLab.library.RandomNumberGenerator import RngPackage
-from ByrdLab.library.dataset import Dataset
+from ByrdLab.library.dataset import DataPackage, StackedDataSet
 
 class Partition():
     def __init__(self, name, rng_pack: RngPackage=RngPackage()):
         self.name = name
+        self.rng_pack = rng_pack
     def get_subsets(self, dataset):
         '''
         return all subsets of dataset
+        ---------------------------------------
+        TODO: the partition of data depends on the specific structure
+              of dataset.
+              In the version, dataset has the structure that all features
+              and targets are stacked in tensors. For other datasets with
+              different structures, another type of `get_subsets` shoule
+              be implemented.
         '''
         raise NotImplementedError
     def __getitem__(self, i):
@@ -21,8 +29,7 @@ class HorizotalPartition(Partition):
         super(HorizotalPartition, self).__init__(name, partition)
     def get_subsets(self, dataset):
         return [
-            Dataset(f'{dataset.name}_{i}',
-                    features=dataset[p][0], targets=dataset[p][1])
+            StackedDataSet(features=dataset[p][0], targets=dataset[p][1])
             for i, p in enumerate(self.partition)
         ]
         
@@ -85,9 +92,8 @@ class VerticalPartition(Partition):
         super().__init__('TrivalDist', partition)
     def get_subsets(self, dataset):
         return [
-            Dataset(f'{dataset.name}_{i}',
-                    features=dataset.features[:, p],
-                    targets=dataset.targets)
+            StackedDataSet(features=dataset.features[:, p],
+                           targets=dataset.targets)
             for i, p in enumerate(self.partition)
         ]
     

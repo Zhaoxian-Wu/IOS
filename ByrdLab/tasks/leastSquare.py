@@ -1,4 +1,4 @@
-from ByrdLab.library.dataset import Dataset
+from ByrdLab.library.dataset import DataPackage
 from ByrdLab import FEATURE_TYPE, VALUE_TYPE
 from ByrdLab.library.RandomNumberGenerator import RngPackage, torch_rng
 from functools import partial
@@ -22,13 +22,13 @@ def train_full_batch_generator(dist_dataset, node,
     while True:
         yield dist_dataset[node][:]
         
-def val_full_batch_generator(dataset):
+def test_full_batch_generator(dataset):
     yield dataset[:]
         
 def least_square_loss(predictions, targets):
     return ((predictions-targets)**2).mean()
 
-class LeastSquareToySet(Dataset):
+class LeastSquareToySet(DataPackage):
     def __init__(self, set_size, dimension, noise=0.1, w_star=None,
                  fix_seed=False, seed=20):
         generator = torch_rng(seed) if fix_seed else None
@@ -75,12 +75,12 @@ class LeastSquareToyTask(Task):
             'lr': 3e-2,
         }
         get_train_iter = train_full_batch_generator
-        get_val_iter = partial(val_full_batch_generator, dataset=dataset)
+        get_test_iter = partial(test_full_batch_generator, dataset=dataset)
         loss_fn = least_square_loss
-        super().__init__(weight_decay=0, dataset=dataset, model=model,
+        super().__init__(weight_decay=0, data_package=dataset, model=model,
                          loss_fn=loss_fn, 
                          get_train_iter=get_train_iter,
-                         get_val_iter=get_val_iter,
+                         get_test_iter=get_test_iter,
                          initialize_fn=RandomInitialize(),
                          super_params=super_params,
                          name=f'LS_{dataset.name}', model_name='LinearModel')

@@ -16,22 +16,22 @@ class SGD(ByzantineEnvironment):
         self.construct_rng_pack()
         # initialize
         w = w0.clone().detach()
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[SGD]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr
+        log('[SGD] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr
         ))
         
         # 中间变量分配空间
         new_G = torch.zeros_like(w0, dtype=FEATURE_TYPE)
         message = torch.zeros(self.node_size, len(w0), dtype=FEATURE_TYPE)
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_train_set[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -50,12 +50,12 @@ class SGD(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g.data, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[SGD]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[SGD] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath
@@ -66,20 +66,20 @@ class BatchSGD(ByzantineEnvironment):
         self.batch_size = batch_size
     def run(self, w0):
         self.construct_rng_pack()
-        # 初始化
+        # initial化
         w = w0.clone().detach()
 
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[BatchSGD]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr)
+        log('[BatchSGD] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr)
         )
         
         # 中间变量分配空间
         new_G = torch.zeros_like(w0, dtype=FEATURE_TYPE)
         message = torch.zeros(self.node_size, len(w0), dtype=FEATURE_TYPE)
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # 诚实节点更新
@@ -87,7 +87,7 @@ class BatchSGD(ByzantineEnvironment):
                     gradient = torch.zeros_like(new_G)
                     
                     for _ in range(self.batch_size):
-                        x, y = self.rng_pack.random.choice(self.dist_dataset[node])
+                        x, y = self.rng_pack.random.choice(self.dist_train_set[node])
                         # 更新梯度表
                         predict = logistic_regression(w, x)
                         err = (predict-y).data
@@ -104,12 +104,12 @@ class BatchSGD(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g.data, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[BatchSGD]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[BatchSGD] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath
@@ -122,10 +122,10 @@ class SAGA(ByzantineEnvironment):
         # initialize
         w = w0.clone().detach()
 
-        store = torch.zeros([len(self.dataset), w.size(0)],
+        store = torch.zeros([len(self.train_set), w.size(0)],
                             requires_grad=False, dtype=FEATURE_TYPE)
-        for index in range(len(self.dataset)):
-            x, y = self.dataset[index]
+        for index in range(len(self.train_set)):
+            x, y = self.train_set[index]
             predict = logistic_regression(w, x)
 
             err = (predict-y).data
@@ -137,22 +137,22 @@ class SAGA(ByzantineEnvironment):
             store[self.partition[i]:self.partition[i+1]].mean(dim=0)
             for i in range(self.honest_size)
         ])
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[SAGA]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr
+        log('[SAGA] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr
         ))
         
         # 中间变量分配空间
         new_G = torch.zeros_like(w0, dtype=FEATURE_TYPE)
         message = torch.zeros(self.node_size, len(w0), dtype=FEATURE_TYPE)
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_train_set[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
 
@@ -177,12 +177,12 @@ class SAGA(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g.data, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[SAGA]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[SAGA] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath
@@ -193,29 +193,29 @@ class SVRG(ByzantineEnvironment):
         self.snapshotInterval = snapshotInterval
     def run(self, w0):
         self.construct_rng_pack()
-        # 初始化
+        # initial化
         w = w0.clone().detach()
 
         snapshot_g = torch.zeros(self.honest_size, len(w0), dtype=FEATURE_TYPE)
         snapshot_w = torch.zeros(len(w0), dtype=FEATURE_TYPE)
 
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[SVRG]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr)
+        log('[SVRG] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr)
         )
         
         # 中间变量分配空间
         message = torch.zeros(self.node_size, len(w0), dtype=FEATURE_TYPE)
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # snapshot
                 if (r*self.display_interval + k) % self.snapshotInterval == 0:
                     snapshot_g.zero_()
                     for node in range(self.honest_size):
-                        for x, y in self.dist_dataset[node]:
+                        for x, y in self.dist_train_set[node]:
                             # 更新梯度表
                             predict = logistic_regression(w, x)
 
@@ -228,7 +228,7 @@ class SVRG(ByzantineEnvironment):
                 # 诚实节点更新
                 message.zero_()
                 for node in range(self.honest_size):
-                    x, y = self.rng_pack.random.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.random.choice(self.dist_train_set[node])
                     # 随机梯度
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -252,12 +252,12 @@ class SVRG(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[SVRG]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[SVRG] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath
@@ -273,10 +273,10 @@ class SARAH(ByzantineEnvironment):
 
         lastGradients = torch.zeros_like(w0, dtype=FEATURE_TYPE)
 
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[SARAH]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr)
+        log('[SARAH] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr)
         )
         
         # 中间变量分配空间
@@ -287,14 +287,14 @@ class SARAH(ByzantineEnvironment):
         # 随机的停止期限
         randomStop = 1
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # snapshot
                 if (r*self.display_interval + k) % randomStop == 0:
                     message.zero_()
                     for node in range(self.honest_size):
-                        for x, y in self.dist_dataset[node]:
+                        for x, y in self.dist_train_set[node]:
                             predict = logistic_regression(w, x)
 
                             err = (predict-y).data
@@ -316,7 +316,7 @@ class SARAH(ByzantineEnvironment):
                 
                 # 诚实节点更新
                 for node in range(self.honest_size):
-                    x, y = self.random.rng.random.choice(self.dist_dataset[node])
+                    x, y = self.random.rng.random.choice(self.dist_train_set[node])
                     # 随机梯度
                     predict = logistic_regression(w, x)
                     err = (predict-y).data
@@ -339,12 +339,12 @@ class SARAH(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[SARAH]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[SARAH] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath
@@ -357,10 +357,10 @@ class ByrD2SAGA(ByzantineEnvironment):
         # initialize
         w = w0.clone().detach()
 
-        store = torch.zeros([len(self.dataset), w.size(0)],
+        store = torch.zeros([len(self.train_set), w.size(0)],
             requires_grad=False, dtype=FEATURE_TYPE)
-        for index in range(len(self.dataset)):
-            x, y = self.dataset[index]
+        for index in range(len(self.train_set)):
+            x, y = self.train_set[index]
             predict = logistic_regression(w, x)
 
             err = (predict-y).data
@@ -372,10 +372,10 @@ class ByrD2SAGA(ByzantineEnvironment):
             store[self.partition[i][0]:self.partition[i][1]].mean(dim=0)
                 for i in range(self.honest_size)
         ])
-        path = [logistic_regression_loss(w, self.dataset, self.weight_decay)]
+        path = [logistic_regression_loss(w, self.train_set, self.weight_decay)]
         variencePath = []
-        log('[SAGA]初始 loss={:.6f}, accuracy={:.2f} lr={:}'.format(
-            path[0], accuracy(w, self.dataset), self.lr))
+        log('[SAGA] initial loss={:.6f}, accuracy={:.2f} lr={:}'.format(
+            path[0], accuracy(w, self.train_set), self.lr))
         
         # 新梯度存储空间
         new_G = torch.zeros_like(w0, dtype=FEATURE_TYPE)
@@ -384,14 +384,14 @@ class ByrD2SAGA(ByzantineEnvironment):
         # 聚合后梯度
         g = torch.zeros_like(w0, dtype=FEATURE_TYPE)
 
-        log('开始迭代')
+        log('[begin optimizing]')
         for r in range(self.rounds):
             for k in range(self.display_interval):
                 # 诚实节点更新
                 message[:self.honest_size].mul_(-1)
                 message[:self.honest_size].add_(g)
                 for node in range(self.honest_size):
-                    x, y = self.rng_pack.choice(self.dist_dataset[node])
+                    x, y = self.rng_pack.choice(self.dist_train_set[node])
                     # 更新梯度表
                     predict = logistic_regression(w, x)
 
@@ -416,12 +416,12 @@ class ByrD2SAGA(ByzantineEnvironment):
                 g = self.aggregation(message)
                 w.add_(g.data, alpha=-self.lr)
                 
-            loss = logistic_regression_loss(w, self.dataset, self.weight_decay)
-            acc = accuracy(w, self.dataset)
+            loss = logistic_regression_loss(w, self.train_set, self.weight_decay)
+            acc = accuracy(w, self.train_set)
             path.append(loss)
             var = get_varience(message, self.honest_size)
             variencePath.append(var)
-            log('[SAGA]已迭代 {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
+            log('[SAGA] {}/{} rounds (interval: {:.0f}), loss={:.9f}, accuracy={:.2f}, var={:.9f}'.format(
                 r+1, self.rounds, self.display_interval, loss, acc, var
             ))
         return w, path, variencePath

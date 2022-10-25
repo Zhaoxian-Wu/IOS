@@ -1,27 +1,42 @@
+from functools import partial
+from ByrdLab.library.dataset import DataPackage
 from ByrdLab.library.initialize import RandomInitialize
+from ByrdLab.library.measurements import binary_classification_accuracy
 from ByrdLab.tasks import Task
 import torch
 import torch.autograd
 
-from ByrdLab import FEATURE_TYPE, CLASS_TYPE
+from ByrdLab import FEATURE_TYPE, TARGET_TYPE
+from ByrdLab.tasks.softmaxRegression import order_generator, random_generator
 
 num_classes = 2
 
 class LogisticRegressionTask(Task):
-    def __init__(self, dataset):
+    def __init__(self, data_package: DataPackage, batch_size=32):
         weight_decay = 0.01
-        model = logisticRegression_model(dataset.feature_dimension)
+        model = logisticRegression_model(data_package.feature_dimension)
         loss_fn = logistic_regression_loss
+        test_fn = binary_classification_accuracy
         super_params = {
             'rounds': 10,
             'display_interval': 4000,
+            'batch_size': batch_size,
+            'test_batch_size': 900,
             
             'lr': 2e-2,
         }
-        super().__init__(weight_decay, dataset, model, loss_fn,
+        
+        test_set = data_package.test_set
+        get_train_iter = partial(random_generator,
+                                 batch_size=super_params['batch_size'])
+        get_test_iter = partial(order_generator, dataset=test_set,
+                                 batch_size=super_params['test_batch_size'])
+        super().__init__(weight_decay, data_package, model, loss_fn, test_fn,
                          initialize_fn=RandomInitialize(),
+                         get_train_iter=get_train_iter,
+                         get_test_iter=get_test_iter,
                          super_params=super_params,
-                         name=f'LR_{dataset.name}',
+                         name=f'LR_{data_package.name}',
                          model_name='LogisticRegression')
 
 class logisticRegression_model(torch.nn.Module):
@@ -31,14 +46,12 @@ class logisticRegression_model(torch.nn.Module):
                                       out_features=1, bias=True)
     def forward(self, features):
         z = self.linear(features)
-        p = torch.sigmoid(z)
-        output = torch.cat([1-p, p]).unsqueeze_(0)
-        return output
+        p = torch.sigmoid(z).view(-1)
+        return p
 
 def logistic_regression_loss(predictions, targets):
-    loss = torch.nn.functional.cross_entropy(
-                predictions.view((1, -1)),
-                targets.type(torch.long).view(-1))
+    loss = torch.nn.functional.binary_cross_entropy(
+                predictions, targets.type_as(predictions).view(-1))
     return loss
     
 def backward_closure(predictions, targets):
@@ -64,18 +77,8 @@ def accuracy(model, dataset):
     correct = 0
     for feature, target in dataset:
         predict = logistic_regression(model, feature) > 0.5
-        correct += (predict.type(CLASS_TYPE) == target).item()
+        correct += (predict.type(TARGET_TYPE) == target).item()
     return correct / len(dataset)
-
-def logistic_regression_loss(model, dataset, weight_decay):
-    loss = 0
-    for data, target in dataset:
-        predict = logistic_regression(model, data)
-        loss += torch.nn.functional.binary_cross_entropy(
-                    predict, target.type(FEATURE_TYPE))
-    loss /= len(dataset)
-    loss += weight_decay * torch.norm(model)**2 / 2
-    return loss.item()
 
 def gradient_sto(model, data, weight_decay):  
     feature, target = data
@@ -117,7 +120,6 @@ def get_outer_variation(w_min, dataset, honestSize):
         gradient = torch.zeros_like(w_min)
         for index in range(pieces[node], pieces[node+1]):
             x, y = dataset[index]
-            # 更新梯度表
             predict = logistic_regression(w_min, x)
 
             err = (predict-y).data

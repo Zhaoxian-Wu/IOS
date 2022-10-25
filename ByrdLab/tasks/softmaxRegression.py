@@ -3,8 +3,10 @@ from functools import partial
 
 import torch
 from ByrdLab.library.RandomNumberGenerator import RngPackage
+from ByrdLab.library.dataset import DataPackage
 
 from ByrdLab.library.initialize import RandomInitialize
+from ByrdLab.library.measurements import multi_classification_accuracy
 from ByrdLab.library.tool import adapt_model_type
 from ByrdLab.tasks import Task
 
@@ -44,30 +46,34 @@ def full_generator(dataset, rng_pack: RngPackage=RngPackage()):
         yield dataset[:]
 
 class softmaxRegressionTask(Task):
-    def __init__(self, dataset, batch_size=32):
+    def __init__(self, data_package: DataPackage, batch_size=32):
         weight_decay = 0.01
-        model = softmaxRegression_model(dataset.feature_dimension,
-                                        dataset.num_classes)
+        model = softmaxRegression_model(data_package.feature_dimension,
+                                        data_package.num_classes)
         model = adapt_model_type(model)
         loss_fn = softmax_regression_loss
+        test_fn = multi_classification_accuracy
         
         super_params = {
             'rounds': 100,
             'display_interval': 500,
             'batch_size': batch_size,
-            'val_batch_size': 900,
+            'test_batch_size': 900,
             
             'lr': 9e-1,
         }
+        
+        test_set = data_package.test_set
         get_train_iter = partial(random_generator,
                                  batch_size=super_params['batch_size'])
-        get_val_iter = partial(order_generator, dataset=dataset,
-                                 batch_size=super_params['val_batch_size'])
-        super().__init__(weight_decay, dataset, model, loss_fn,
+        get_test_iter = partial(order_generator, dataset=test_set,
+                                 batch_size=super_params['test_batch_size'])
+        super().__init__(weight_decay, data_package, model, 
+                         loss_fn=loss_fn, test_fn=test_fn,
                          initialize_fn=RandomInitialize(),
                          get_train_iter=get_train_iter,
-                         get_val_iter=get_val_iter,
+                         get_test_iter=get_test_iter,
                          super_params=super_params,
-                         name=f'SR_{dataset.name}',
+                         name=f'SR_{data_package.name}',
                          model_name='softmaxRegression')
      

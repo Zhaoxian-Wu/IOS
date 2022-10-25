@@ -2,12 +2,15 @@ import random
 
 import torch
 
-from ByrdLab.library.dataset import DistributedDataSets
-from ByrdLab.library.partition import TrivalPartition
+from ByrdLab.library.dataset import DataPackage, DistributedDataSets
+from ByrdLab.library.partition import Partition, TrivalPartition
 from ByrdLab.library.learnRateController import constant_lr
 from ByrdLab.library.RandomNumberGenerator import RngPackage
 
 class IterativeEnvironment():
+    '''
+    A base class for any algorithm requiring iteration
+    '''
     def __init__(self, name, lr, lr_ctrl=None,
                  rounds=10, display_interval=1000, total_iterations=None,
                  seed=None, fix_seed=False,
@@ -77,9 +80,10 @@ class IterativeEnvironment():
 
 class ByzantineEnvironment(IterativeEnvironment):
     def __init__(self, name, lr, model, weight_decay, 
-                 dataset, loss_fn, initialize_fn=None, lr_ctrl=None,
-                 get_train_iter=None, get_val_iter=None, 
-                 partition_cls=TrivalPartition, 
+                 data_package: DataPackage, 
+                 loss_fn, test_fn, initialize_fn=None, lr_ctrl=None,
+                 get_train_iter=None, get_test_iter=None, 
+                 partition_cls: Partition=TrivalPartition, 
                  honest_size=-1, byzantine_size=-1, 
                  honest_nodes=None, byzantine_nodes=None, attack=None,
                  rounds=10, display_interval=1000, total_iterations=None,
@@ -121,18 +125,19 @@ class ByzantineEnvironment(IterativeEnvironment):
         # ====== task information ======
         self.weight_decay = weight_decay
         self.loss_fn = loss_fn
+        self.test_fn = test_fn
         self.get_train_iter = get_train_iter
-        self.get_val_iter = get_val_iter
+        self.get_test_iter = get_test_iter
 
-        # distribute dataset
-        self.dataset = dataset
-        dist_dataset = DistributedDataSets(dataset=dataset, 
-                                           partition_cls=partition_cls,
-                                           nodes=self.nodes,
-                                           honest_nodes=self.honest_nodes,
-                                           rng_pack=self.rng_pack)
-        self.partition_name = dist_dataset.partition.name
-        self.dist_dataset = dist_dataset
+        # ====== distribute dataset ======
+        self.data_package = data_package
+        dist_train_set = DistributedDataSets(dataset=data_package.train_set, 
+                                             partition_cls=partition_cls,
+                                             nodes=self.nodes,
+                                             honest_nodes=self.honest_nodes,
+                                             rng_pack=self.rng_pack)
+        self.partition_name = dist_train_set.partition.name
+        self.dist_train_set = dist_train_set
         
     def run(self, *args, **kw):
         raise NotImplementedError
