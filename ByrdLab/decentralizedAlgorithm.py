@@ -1,7 +1,6 @@
 import torch
 
 from ByrdLab.environment import DecentralizedByzantineEnvironment
-from ByrdLab.library import dataset
 from ByrdLab.library.dataset import EmptySet
 from ByrdLab.DistributedModule import DistributedModule
 from ByrdLab.library.partition import EmptyPartition
@@ -15,15 +14,6 @@ class DSGD(DecentralizedByzantineEnvironment):
         super(DSGD, self).__init__(name='DSGD', graph=graph, *args, **kw)
         self.consensus_init = consensus_init
         self.aggregation = aggregation
-    
-    def initilize_models(self, dist_models, consensus=False):
-        if self.initialize_fn is None:
-            return
-        for node in self.honest_nodes:
-            dist_models.activate_model(node)
-            model = dist_models.model
-            seed = self.seed if consensus else node + self.seed
-            self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
             
     def run(self):
         self.construct_rng_pack()
@@ -57,7 +47,6 @@ class DSGD(DecentralizedByzantineEnvironment):
             if iteration % self.display_interval == 0:
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
-                # TODO: training loss -> val loss
                 test_loss, test_accuracy = avg_loss_accuracy_dist(
                     dist_models, self.get_test_iter,
                     self.loss_fn, self.test_fn,
@@ -238,15 +227,6 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
                                             graph=graph, *args, **kw)
         self.consensus_init = consensus_init
         self.lamb = penalty
-    
-    def initilize_models(self, dist_models, consensus=False):
-        if self.initialize_fn is None:
-            return
-        for node in self.honest_nodes:
-            dist_models.activate_model(node)
-            model = dist_models.model
-            seed = self.seed if consensus else node + self.seed
-            self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
             
     def run(self):
         self.construct_rng_pack()
@@ -280,7 +260,6 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
             if iteration % self.display_interval == 0:
                 # train_loss_avg = train_loss / total_sample
                 # train_accuracy_avg = train_accuracy / total_sample
-                # TODO: training loss -> val loss
                 test_loss, test_accuracy = avg_loss_accuracy_dist(
                     dist_models, self.get_test_iter,
                     self.loss_fn, self.test_fn,
@@ -377,6 +356,170 @@ class Decentralized_gossip(DecentralizedByzantineEnvironment):
                 
         return ce_path
    
+   
+# Xu, Jian, and Shao-Lun Huang. 
+# "Byzantine-Resilient Decentralized Collaborative Learning." 
+# ICASSP 2022
+class SimiliarityReweighting(DecentralizedByzantineEnvironment):
+    def __init__(self, graph, c=1, consensus_init=False, *args, **kw):
+        super().__init__(name='SimReweight', graph=graph, *args, **kw)
+        self.consensus_init = consensus_init
+        self.c = c
+        self.kl_loss = torch.nn.KLDivLoss(reduction="batchmean")
+        self.softmax = torch.nn.Softmax(dim=0)
+    def run(self):
+        self.construct_rng_pack()
+        # initialize
+        dist_models = DistributedModule(self.model, self.node_size)
+        self.initilize_models(dist_models, consensus=self.consensus_init)
+        # initial record
+        loss_path = []
+        acc_path = []
+        consensus_error_path = []
+        
+        # log formatter
+        num_len = len(str(self.total_iterations))
+        num_format = '{:>' + f'{num_len}' + 'd}'
+        hint = '[SimReweight]' + num_format + '/{} iterations ({:>6.2f}%) ' + \
+            'loss={:.3e}, accuracy={:.4f}, ce={:.5e}, lr={:f}'
+        # local models before gradient descent
+        param_bf_gd = torch.zeros_like(dist_models.params_vec)
+        # local models before communication
+        param_bf_comm = torch.zeros_like(dist_models.params_vec)
+        # train_loss = 0
+        # train_accuracy = 0
+        # total_sample = 0
+        data_iters = [self.get_train_iter(dataset=self.dist_train_set[node],
+                                          rng_pack=self.rng_pack) 
+                      if node in self.honest_nodes else None
+                      for node in self.nodes]
+        for iteration in range(0, self.total_iterations + 1):
+            # lastest learning rate
+            lr = self.lr_ctrl.get_lr(iteration)
+            
+            # record (totally 'rounds+1' times)
+            if iteration % self.display_interval == 0:
+                # train_loss_avg = train_loss / total_sample
+                # train_accuracy_avg = train_accuracy / total_sample
+                test_loss, test_accuracy = avg_loss_accuracy_dist(
+                    dist_models, self.get_test_iter,
+                    self.loss_fn, self.test_fn,
+                    weight_decay=0, node_list=self.honest_nodes)
+                
+                loss_path.append(test_loss)
+                acc_path.append(test_accuracy)
+                
+                ce = consensus_error(dist_models.params_vec,
+                                     self.graph.honest_nodes)
+                consensus_error_path.append(ce)
+                log(hint.format(
+                    iteration, self.total_iterations,
+                    iteration / self.total_iterations * 100,
+                    test_loss, test_accuracy, ce, lr
+                ))
+                # reset the record
+                # train_loss_avg = 0
+                # train_accuracy_avg = 0
+                
+            param_bf_gd.copy_(dist_models.params_vec)
+            for node in self.graph.honest_nodes:
+                dist_models.activate_model(node)
+                model = dist_models.model
+                features, targets = next(data_iters[node])
+                predictions = model(features)
+                loss = self.loss_fn(predictions, targets)
+                model.zero_grad()
+                loss.backward()
+                
+                # record loss
+                # train_loss += loss.item()
+                # train_loss += self.weight_decay / 2 * dist_models.norm(node)**2
+                # TODO: correct prediction_cls
+                # _, prediction_cls = torch.max(predictions.detach(), dim=1)
+                # train_accuracy += (prediction_cls == targets).sum().item()
+                # total_sample += len(targets)
+                # total_sample += 1
+                
+                # gradient descend
+                with torch.no_grad():
+                    for param in model.parameters():
+                        if param.grad is not None:
+                            param.data.mul_(1 - self.weight_decay * lr)
+                            param.data.sub_(param.grad, alpha=lr)
+                            
+            param_bf_comm.copy_(dist_models.params_vec)
+            # communication and attack
+            for node in self.graph.honest_nodes:
+                # Byzantine attack
+                byzantine_neighbors_size = self.graph.byzantine_sizes[node]
+                if self.attack != None and byzantine_neighbors_size != 0:
+                    self.attack.run(param_bf_comm, node, self.rng_pack)
+                model_changes = param_bf_comm - param_bf_gd[node]
+                model_change_norms = model_changes.norm(dim=1)
+                sim_1 = self.sim_1(node, model_changes)
+                sim_2 = self.sim_2(node, model_changes, model_change_norms)
+                weight = sim_1 * sim_2
+                # norm cliping
+                # if ii >= ij, don't clip
+                # else clip
+                ii_gt_than_ij = model_change_norms[node] >= model_change_norms
+                normed_change = (
+                    model_changes.transpose(0, 1) * (ii_gt_than_ij \
+                    + ~ii_gt_than_ij * model_change_norms[node] / model_change_norms)
+                ).transpose(0, 1)
+                
+                # aggregation
+                weighted_change = torch.matmul(weight, normed_change)
+                aggregation_res = param_bf_gd[node] + weighted_change
+                dist_models.params_vec[node].copy_(aggregation_res)
+                
+        dist_models.activate_avg_model()
+        avg_model = dist_models.model
+        return avg_model, loss_path, acc_path, consensus_error_path
+    
+    def sim_1(self, node, model_changes):
+        world_size = model_changes.size(0)
+        changes_sign = model_changes.sign()
+        # distribution of -1, 0, 1
+        sign_dist_torch = torch.zeros((world_size, 3), dtype=torch.double)
+        # count the number of -1, 0, 1
+        for n in self.graph.neighbors_and_itself[node]:
+            signed_change = changes_sign[n]
+            elements, cnts = torch.unique(signed_change, return_counts=True, 
+                                          sorted=True)
+            if elements.size(0) == 1:
+                idx = int(elements[0].item())
+                sign_dist_torch[n][idx] = cnts[0]
+            else:
+                sign_dist_dict = {
+                    element.item(): cnt for element, cnt in zip(elements, cnts)
+                }
+                sign_dist_torch[n].copy_(torch.tensor([
+                    sign_dist_dict.get(i, 0) for i in [-1, 0, 1] 
+                ]))
+        # nomalize
+        model_size = model_changes.size(1)
+        sign_dist_torch.div_(model_size)
+        weight_on_neighbors = self.softmax(torch.tensor([
+            -self.c * self.kl_loss(sign_dist_torch[n], sign_dist_torch[node])
+            for _, n in enumerate(self.graph.neighbors_and_itself[node])
+        ]))
+        weight = torch.zeros(world_size).type_as(model_changes)
+        for j, n in enumerate(self.graph.neighbors_and_itself[node]):
+            weight[n] = weight_on_neighbors[j]
+        return weight
+    def sim_2(self, node, model_changes, model_change_norms):
+        world_size = model_changes.size(0)
+        weight = torch.zeros(world_size).type_as(model_changes)
+        weight[node] = 1
+        self_direction = model_changes[node] / model_change_norms[node]
+        for n in self.graph.honest_neighbors[node]:
+            inner_product = self_direction.dot(model_changes[n])
+            if inner_product > 0:
+                weight[n] = inner_product / model_change_norms[n]
+            else:
+                weight[n] = 0
+        return weight
     
 class DSGD_inner_variation(DSGD):
     def __init__(self, graph, aggregation, inner_variation=0, *args, **kw):

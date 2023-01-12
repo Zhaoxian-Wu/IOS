@@ -138,6 +138,15 @@ class ByzantineEnvironment(IterativeEnvironment):
                                              rng_pack=self.rng_pack)
         self.partition_name = dist_train_set.partition.name
         self.dist_train_set = dist_train_set
+    
+    def initilize_models(self, dist_models, consensus=False):
+        if self.initialize_fn is None:
+            return
+        for node in self.honest_nodes:
+            dist_models.activate_model(node)
+            model = dist_models.model
+            seed = self.seed if consensus else node + self.seed
+            self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
         
     def run(self, *args, **kw):
         raise NotImplementedError
