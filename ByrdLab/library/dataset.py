@@ -233,6 +233,17 @@ class mnist(StackedTorchDataPackage):
         super().__init__('mnist', get_mnist)
 
 
+class ClassificationToySet(StackedDataSet):
+    def __init__(self, set_size, dimension=20, class_cnt=10,
+                 fix_seed=False, seed=20):
+        generator = torch_rng(seed) if fix_seed else None
+        features = torch.randn((set_size, dimension), dtype=FEATURE_TYPE,
+                        generator=generator)
+        targets = torch.randint(0, class_cnt, (set_size,))
+        super().__init__(features=features, targets=targets)
+        
+  
+# TODO: need to be updated into a StackedDataSet
 class LogisticRegressionToySet(DataPackage):
     def __init__(self, set_size, dimension, noise=0.1, w_star=None,
                  fix_seed=False, seed=20):
