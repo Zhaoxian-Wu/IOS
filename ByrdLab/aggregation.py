@@ -1,4 +1,6 @@
 import copy
+import itertools
+import math
 
 import torch
 from ByrdLab import FEATURE_TYPE
@@ -14,17 +16,20 @@ from ByrdLab.library.tool import MH_rule
 #     def run(self, messages):
 #         raise NotImplementedError
 
+
 def mean(wList):
     return torch.mean(wList, dim=0)
 
-def geometric_median(wList, max_iter = 80, err=1e-5):
+
+def geometric_median(wList, max_iter=80, err=1e-5):
     guess = torch.mean(wList, dim=0)
     for _ in range(max_iter):
         dist_li = torch.norm(wList-guess, dim=1)
         for i in range(len(dist_li)):
             if dist_li[i] == 0:
                 dist_li[i] = 1
-        temp1 = torch.sum(torch.stack([w/d for w, d in zip(wList, dist_li)]), dim=0)
+        temp1 = torch.sum(torch.stack(
+            [w/d for w, d in zip(wList, dist_li)]), dim=0)
         temp2 = torch.sum(1/dist_li)
         guess_next = temp1 / temp2
         guess_movement = torch.norm(guess - guess_next)
@@ -32,6 +37,7 @@ def geometric_median(wList, max_iter = 80, err=1e-5):
         if guess_movement <= err:
             break
     return guess
+
 
 def medoid_index(wList):
     node_size = wList.size(0)
@@ -45,9 +51,11 @@ def medoid_index(wList):
             dist[j][i] = distance.data
     dist_sum = dist.sum(dim=1)
     return dist_sum.argmax()
-    
+
+
 def medoid(wList):
     return wList[medoid_index(wList)]
+
 
 def Krum_index(wList, byzantine_size):
     node_size = wList.size(0)
@@ -60,14 +68,16 @@ def Krum_index(wList, byzantine_size):
             dist[i][j] = distance.data
             dist[j][i] = distance.data
     # The distance from any node to itself must be 0.00, so we add 1 here
-    k = node_size - byzantine_size - 2 + 1 
+    k = node_size - byzantine_size - 2 + 1
     topv, _ = dist.topk(k=k, dim=1)
     scores = topv.sum(dim=1)
     return scores.argmax()
-    
+
+
 def Krum(wList, byzantine_size):
     index = Krum_index(wList, byzantine_size)
     return wList[index]
+
 
 def mKrum(wList, byzantine_size, m=1):
     remain = wList
@@ -78,14 +88,86 @@ def mKrum(wList, byzantine_size, m=1):
         remain = remain[torch.arange(remain.size(0)) != res_index]
     return result / m
 
+
 def median(wList):
     return wList.median(dim=0)[0]
+
+
+def pairwise(data):
+    """ Simple generator of the pairs (x, y) in a tuple such that index x < index y.
+    Args:
+      data Indexable (including ability to query length) containing the elements
+    Returns:
+      Generator over the pairs of the elements of 'data'
+    """
+    n = len(data)
+    for i in range(n - 1):
+        for j in range(i + 1, n):
+            yield (data[i], data[j])
+
+
+def brute_selection(gradients, f, **kwargs):
+    """ Brute rule. 
+    brute is also called minimum diameter averaging (MDA)
+    The code comes from:
+    https://github.com/LPD-EPFL/Garfield/blob/master/pytorch_impl/libs/aggregators/brute.py#L32
+
+    Args:
+      gradients Non-empty list of gradients to aggregate
+      f         Number of Byzantine gradients to tolerate
+      ...       Ignored keyword-arguments
+    Returns:
+      Selection index set
+    """
+    n = len(gradients)
+    # Compute all pairwise distances
+    distances = [0] * (n * (n - 1) // 2)
+    for i, (x, y) in enumerate(pairwise(tuple(range(n)))):
+        distances[i] = gradients[x].sub(gradients[y]).norm().item()
+    # Select the set of smallest diameter
+    sel_iset = None
+    sel_diam = None
+    for cur_iset in itertools.combinations(range(n), n - f):
+        # Compute the current diameter (max of pairwise distances)
+        cur_diam = 0.
+        for x, y in pairwise(cur_iset):
+            # Get distance between these two gradients ("magic" formula valid since x < y)
+            cur_dist = distances[(2 * n - x - 3) * x // 2 + y - 1]
+            # Check finite distance (non-Byzantine gradient must only contain finite coordinates), drop set if non-finite
+            if not math.isfinite(cur_dist):
+                break
+            # Check if new maximum
+            if cur_dist > cur_diam:
+                cur_diam = cur_dist
+        else:
+            # Check if new selected diameter
+            if sel_iset is None or cur_diam < sel_diam:
+                sel_iset = cur_iset
+                sel_diam = cur_diam
+    # Return the selected gradients
+    assert sel_iset is not None, "Too many non-finite gradients: a non-Byzantine gradient must only contain finite coordinates"
+    return sel_iset
+
+
+def brute(gradients, byzantine_size, **kwargs):
+    """ Brute rule.
+    Args:
+      gradients Non-empty list of gradients to aggregate
+      f         Number of Byzantine gradients to tolerate
+      ...       Ignored keyword-arguments
+    Returns:
+      Aggregated gradient
+    """
+    sel_iset = brute_selection(gradients, byzantine_size, **kwargs)
+    return sum(gradients[i] for i in sel_iset).div_(len(gradients) - byzantine_size)
+
 
 def trimmed_mean(wList, byzantine_size):
     node_size = wList.size(0)
     proportion_to_cut = byzantine_size / node_size
     tm_np = stats.trim_mean(wList, proportion_to_cut, axis=0)
     return torch.from_numpy(tm_np)
+
 
 def remove_outliers(wList, byzantine_size):
     mean = torch.mean(wList, dim=0)
@@ -97,7 +179,8 @@ def remove_outliers(wList, byzantine_size):
     remain_cnt = node_size - byzantine_size
     (_, remove_index) = torch.topk(distances, k=remain_cnt)
     return wList[remove_index].mean(dim=0)
-    
+
+
 def faba(wList, byzantine_size):
     remain = wList
     for _ in range(byzantine_size):
@@ -109,6 +192,7 @@ def faba(wList, byzantine_size):
         remove_index = distances.argmax()
         remain = remain[torch.arange(remain.size(0)) != remove_index]
     return remain.mean(dim=0)
+
 
 def bulyan(wList, byzantine_size):
     remain = wList
@@ -129,7 +213,8 @@ def bulyan(wList, byzantine_size):
         result = torch.stack([
             selection[indices[:, d], d].mean() for d in range(wList.size(1))])
     return result
-    
+
+
 class DecentralizedAggregation():
     def __init__(self, name, graph, superparameter={}):
         self.name = name
@@ -137,71 +222,92 @@ class DecentralizedAggregation():
         # some aggregation may need global state of the system
         # this global state can be store in the global state dictionary
         self.global_state = {}
+        self.required_info = set()
         self.superparam = superparameter
+
     def run(self, local_models, node):
         raise NotImplementedError
+
     def all_neighbor_models(self, local_models, node):
         return local_models[self.graph.neighbors[node]]
+
     def neighbor_models_and_itself(self, local_model, node):
         li = list(self.graph.neighbors[node]) + [node]
         return local_model[li]
-    
+
+
 class D_mean(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_mean, self).__init__(name='mean', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
         return neighbor_models.mean(axis=0)
-    
+
+
 class D_no_communication(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_no_communication, self).__init__(name='no_communication',
                                                  graph=graph)
+
     def run(self, local_models, node):
         return local_models[node]
+
 
 class D_meanW(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_meanW, self).__init__(name='meanW', graph=graph)
         self.W = MH_rule(graph)
+
     def run(self, local_models, node):
         return torch.tensordot(self.W[node], local_models, dims=1)
-    
+
+
 class D_median(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_median, self).__init__(name='median', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
         return median(neighbor_models)
-    
+
+
 class D_geometric_median(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_geometric_median, self).__init__(name='geometric_median',
                                                  graph=graph)
+
     def run(self,  local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
         return geometric_median(neighbor_models)
-    
+
+
 class D_Krum(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_Krum, self).__init__(name='Krum', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
         return Krum(neighbor_models, byzantine_size=self.graph.byzantine_sizes[node])
-    
+
+
 class D_mKrum(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_mKrum, self).__init__(name='mKrum', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
-        m = self.graph.neighbor_sizes[node]-2*self.graph.byzantine_sizes[node]-3
-        return mKrum(neighbor_models, 
+        m = self.graph.neighbor_sizes[node] - \
+            2*self.graph.byzantine_sizes[node]-3
+        return mKrum(neighbor_models,
                      byzantine_size=self.graph.byzantine_sizes[node],
                      m=m)
-    
+
+
 class D_trimmed_mean(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_trimmed_mean, self).__init__(name='trimmed_mean', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.all_neighbor_models(local_models, node)
         q = self.graph.byzantine_sizes[node]
@@ -209,31 +315,38 @@ class D_trimmed_mean(DecentralizedAggregation):
         trimmed_neighbor_size = len(neighbor_models) - 2 * q
         local_model = local_models[node]
         return (tm * trimmed_neighbor_size + local_model) / (trimmed_neighbor_size + 1)
-    
+
+
 class D_remove_outliers(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_remove_outliers, self).__init__(name='remove_outliers',
                                                 graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.all_neighbor_models(local_models, node)
         local_model = local_models[node]
-        rm = remove_outliers(neighbor_models, 
+        rm = remove_outliers(neighbor_models,
                              byzantine_size=self.graph.byzantine_sizes[node])
         neighbor_size = len(neighbor_models)
         res = (rm * neighbor_size + local_model) / (neighbor_size + 1)
         return res
-    
+
+
 class D_faba(DecentralizedAggregation):
     def __init__(self, graph):
         super(D_faba, self).__init__(name='FABA', graph=graph)
+
     def run(self, local_models, node):
         neighbor_models = self.all_neighbor_models(local_models, node)
         local_model = local_models[node]
-        agg = faba(neighbor_models, byzantine_size=self.graph.byzantine_sizes[node])
+        agg = faba(neighbor_models,
+                   byzantine_size=self.graph.byzantine_sizes[node])
         hoenst_neighbor_size = self.graph.honest_sizes[node]
-        res = (agg * hoenst_neighbor_size + local_model) / (hoenst_neighbor_size + 1)
+        res = (agg * hoenst_neighbor_size + local_model) / \
+            (hoenst_neighbor_size + 1)
         return res
-    
+
+
 class D_ios(DecentralizedAggregation):
     def __init__(self, graph, exact_byz_cnt=True, byz_cnt=-1):
         assert exact_byz_cnt or byz_cnt > 0
@@ -258,6 +371,7 @@ class D_ios(DecentralizedAggregation):
                 self.W[i][j] = 1 / max(i_n, j_n)
                 # self.W[i][j] = 1 / i_n
                 self.W[i][i] -= self.W[i][j]
+
     def run(self, local_models, node):
         remain_models = local_models[self.graph.neighbors[node]]
         remain_weight = self.W[node][self.graph.neighbors[node]]
@@ -284,7 +398,8 @@ class D_ios(DecentralizedAggregation):
         res += self.W[node][node]*local_models[node]
         res /= remain_weight.sum() + self.W[node][node]
         return res
-    
+
+
 class D_ios_equal_neigbor_weight(DecentralizedAggregation):
     def __init__(self, graph):
         super().__init__(name='IOS_equal_neigbor_weight', graph=graph)
@@ -301,6 +416,7 @@ class D_ios_equal_neigbor_weight(DecentralizedAggregation):
                 self.W[i][j] = 1 / max_degree
                 # self.W[i][j] = 1 / i_n
                 self.W[i][i] -= self.W[i][j]
+
     def run(self, local_models, node):
         remain_models = local_models[self.graph.neighbors[node]]
         remain_weight = self.W[node][self.graph.neighbors[node]]
@@ -319,7 +435,7 @@ class D_ios_equal_neigbor_weight(DecentralizedAggregation):
         res = torch.tensordot(remain_weight, remain_models, dims=1)
         res += self.W[node][node]*local_models[node]
         res /= remain_weight.sum() + self.W[node][node]
-        
+
         # FABA
         # neighbor_models = self.all_neighbor_models(local_models, node)
         # local_model = local_models[node]
@@ -336,21 +452,35 @@ class D_ios_equal_neigbor_weight(DecentralizedAggregation):
         # hoenst_neighbor_size = self.graph.honest_sizes[node]
         # res2 = (agg * hoenst_neighbor_size + local_model) / (hoenst_neighbor_size + 1)
         return res
-    
+
+
+class D_brute(DecentralizedAggregation):
+    def __init__(self, graph):
+        self.byzantine_sizes = graph.byzantine_sizes
+        super(D_brute, self).__init__(name='Brute', graph=graph)
+    def run(self, local_models, node):
+        local_model = local_models[node]
+        agg = brute(local_model, byzantine_size=self.byzantine_sizes[node])
+        return agg
+        
+
 class D_bulyan(DecentralizedAggregation):
     def __init__(self, graph):
         self.byzantine_sizes = graph.byzantine_sizes
         super(D_bulyan, self).__init__(name='Bulyan', graph=graph)
+
     def run(self, local_models, node):
         local_model = local_models[node]
         agg = bulyan(local_model, byzantine_size=self.byzantine_sizes[node])
         return agg
-        
+
+
 class D_centered_clipping(DecentralizedAggregation):
     def __init__(self, graph, threshold=10):
         super().__init__(name=f'CC_tau={threshold}', graph=graph)
         self.memory = None
         self.threshold = threshold
+
     def run(self, local_models, node):
         if self.memory == None:
             self.memory = torch.zeros_like(local_models)
@@ -365,8 +495,8 @@ class D_centered_clipping(DecentralizedAggregation):
         diff /= (self.graph.neighbor_sizes[node] + 1)
         self.memory[node] = self.memory[node] + diff
         return self.memory[node]
-    
-            
+
+
 class D_self_centered_clipping(DecentralizedAggregation):
     def __init__(self, graph, threshold_selection='estimation', threshold=10):
         if threshold_selection == 'estimation':
@@ -381,6 +511,7 @@ class D_self_centered_clipping(DecentralizedAggregation):
         self.W = MH_rule(graph)
         self.threshold = threshold
         self.threshold_selection = threshold_selection
+
     def get_threshold_estimate(self, local_models, node):
         # find the bottom-(honest-size) weights as the estimated threshold
         local_model = local_models[node]
@@ -390,11 +521,11 @@ class D_self_centered_clipping(DecentralizedAggregation):
             if n in self.graph.neighbors[node] and n != node else 1
             for n in range(node_size)
         ])
-        
+
         honest_size = self.graph.honest_sizes[node]
         _, bottom_index = norm_list.topk(k=honest_size)
         top_index = [
-            n for n in self.graph.neighbors[node] 
+            n for n in self.graph.neighbors[node]
             if n not in bottom_index and n != node
         ]
         weighted_avg_norm = sum([
@@ -404,10 +535,11 @@ class D_self_centered_clipping(DecentralizedAggregation):
             self.W[node][n] for n in top_index
         ])
         return torch.sqrt(weighted_avg_norm/cum_weight)
+
     def get_true_threshold(self, local_models, node):
         # find the bottom-(honest-size) weights as the estimated threshold
         local_model = local_models[node]
-        
+
         weighted_avg_norm = sum([
             self.W[node][n]*(local_models[n]-local_model).norm()
             for n in self.graph.honest_neighbors[node]
@@ -416,6 +548,7 @@ class D_self_centered_clipping(DecentralizedAggregation):
             self.W[node][n] for n in self.graph.byzantine_neighbors[node]
         ])
         return torch.sqrt(weighted_avg_norm/cum_weight)
+
     def run(self, local_models, node):
         if self.threshold_selection == 'estimation':
             threshold = self.get_threshold(local_models, node)
