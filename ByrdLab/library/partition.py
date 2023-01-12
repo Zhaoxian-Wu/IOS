@@ -74,27 +74,77 @@ class SharedData(HorizotalPartition):
         super(SharedData, self).__init__('SharedData', partition)
         
 class LabelSeperation(HorizotalPartition):
-    def __init__(self, dataset, node_cnt, class_cnt, *args, **kw):
+    def __init__(self, dataset, node_cnt, *args, **kw):
+        self.class_set = set([label.item() for _, label in dataset])
+        self.class_cnt = len(self.class_set)
+        self.node_cnt = node_cnt
+        self.dataset = dataset
+        # deal with the situation that class idx don't
+        # locate in consecutive integers starting from zeros
+        self.class_idx_dict = {
+            label: idx for idx, label in enumerate(self.class_set)}
+        
+        if self.class_cnt < node_cnt:
+            partition = self.partition_with_adaquate_nodes()
+        else:
+            partition = self.partition_with_adaquate_classes()
+        super(LabelSeperation, self).__init__('LabelSeperation', partition)
+        
+    def partition_with_adaquate_classes(self):
+        '''
+        class_cnt >= node_cnt
+        some nodes possess several classes
+        '''
+        partition = [[] for _ in range(self.node_cnt)]
+        for data_idx, (_, label) in enumerate(self.dataset):
+            node_idx = self.class_idx_dict[label.item()] % self.node_cnt
+            partition[node_idx].append(data_idx)
+        return partition
+    
+    def partition_with_adaquate_nodes(self):
+        '''
+        class_cnt < node_cnt
+        some classes are allocated on different workers
+        '''
+        class_cnt = self.class_cnt
+        node_cnt = self.node_cnt
+        dataset = self.dataset
+        
         # divide the nodes into `class_cnt` groups
         group_boundary = [(group_idx*node_cnt) // class_cnt 
-                       for group_idx in range(class_cnt)]
+                            for group_idx in range(class_cnt)]
         # when a data is going to be allocated to `group_idx`-th groups,
-        # it'll be allocated to insert_node_ptrs[group_idx]-th node
-        # then insert_node_ptrs[group_idx] increases by 1
+        # it'll be allocated to `insert_node_ptrs[group_idx]`-th node
+        # then `insert_node_ptrs[group_idx]` increases by 1
         insert_node_ptrs = group_boundary.copy()
         group_boundary.append(node_cnt)
+        # [e.g] 
+        # class_cnt = 5
+        # node_cnt = 8
+        # group_boundary = [0, 1, 3, 4, 6, 8]
+        # divide 8 nodes into 5 groups by
+        # 0 | 1 | 2 3 | 4 5 | 6 7 |
+        # where the vertical line represent the corresponding `group_boundary`
+        # this means
+        # class 0 on worker 0
+        # class 1 on worker 1
+        # class 2 on worker 2, 3
+        # class 3 on worker 4, 5
+        # class 4 on worker 6, 7
         
         partition = [[] for _ in range(node_cnt)]
         for data_idx, (_, label) in enumerate(dataset):
-            group_idx = label % node_cnt
+            # determine which group the data belongs to
+            group_idx = self.class_idx_dict[label.item()]
             node_idx = insert_node_ptrs[group_idx]
             partition[node_idx].append(data_idx)
-            # insert_node_ptrs[group_idx] increases by 1
+            # `insert_node_ptrs[group_idx]` increases by 1
             if insert_node_ptrs[group_idx] + 1 < group_boundary[group_idx+1]:
                 insert_node_ptrs[group_idx] += 1
             else:
                 insert_node_ptrs[group_idx] = group_boundary[group_idx]
-        super(LabelSeperation, self).__init__('LabelSeperation', partition)
+        return partition
+        
         
 class VerticalPartition(Partition):
     def __init__(self, dataset, node_cnt) -> None:
