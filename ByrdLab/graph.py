@@ -140,7 +140,7 @@ class CompleteGraph(Graph):
         honest_nodes = list(range(node_size-byzantine_size))
         byzantine_nodes = list(range(node_size-byzantine_size, node_size))
         name = f'Complete_n={node_size}_b={byzantine_size}'
-        super(CompleteGraph, self).__init__(name=name, nx_graph=graph,
+        super().__init__(name=name, nx_graph=graph,
                                             honest_nodes=honest_nodes,
                                             byzantine_nodes=byzantine_nodes)
 
@@ -157,7 +157,7 @@ class ErdosRenyi(Graph):
         name = f'ER_n={node_size}_b={byzantine_size}_p={connected_p}'
         if seed is not None:
             name = name + f'_seed={seed}'
-        super(ErdosRenyi, self).__init__(name = name, nx_graph = graph,
+        super().__init__(name = name, nx_graph = graph,
                                          honest_nodes=honest_nodes,
                                          byzantine_nodes=byzantine_nodes)
     
@@ -187,7 +187,7 @@ class TwoCastle(Graph):
         name = f'TwoCastle_k={k}_b={byzantine_size}'
         if seed is not None:
             name = name + f'_seed={seed}'
-        super(TwoCastle, self).__init__(name = name, nx_graph = graph,
+        super().__init__(name = name, nx_graph = graph,
                                         honest_nodes=honest_nodes,
                                         byzantine_nodes=byzantine_nodes)
 

@@ -63,7 +63,10 @@ class DistributedModule():
         if node_list is None:
             return self.params_vec.mean(axis=0)
         else:
-            return self.params_vec[node_list].mean(axis=0)
+            avg_model = torch.zeros(self.model_size)
+            for node in node_list:
+                avg_model.add_(self.params_vec[node])
+            return avg_model / len(node_list)
                 
     def set_param(self, param_name, new_param):
         atoms = param_name.split(".")
@@ -75,6 +78,9 @@ class DistributedModule():
         
     def norm(self, node, *args, **kw):
         return self.params_vec[node].norm(*args, **kw)
+        
+    def norm_avg(self, node_list=None, *args, **kw):
+        return self.get_avg_param(node_list=node_list).norm()
     
     def init_grads_vec(self):
         self.avg_grad = torch.zeros(self.model_size, dtype=FEATURE_TYPE)

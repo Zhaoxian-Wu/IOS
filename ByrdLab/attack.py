@@ -139,7 +139,7 @@ class decentralizedAttack():
     
 class D_gaussian(decentralizedAttack):
     def __init__(self, graph, scale=30):
-        super(D_gaussian, self).__init__(name='gaussian', graph=graph)
+        super().__init__(name='gaussian', graph=graph)
         self.scale = scale
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
@@ -159,7 +159,7 @@ class D_sign_flipping(decentralizedAttack):
             name = 'sign_flipping'
         else:
             name = f'sign_flipping_s={scale}'
-        super(D_sign_flipping, self).__init__(name=name, graph=graph)
+        super().__init__(name=name, graph=graph)
         self.scale = scale
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
@@ -171,7 +171,7 @@ class D_sign_flipping(decentralizedAttack):
          
 class D_zero_sum(decentralizedAttack):
     def __init__(self, graph):
-        super(D_zero_sum, self).__init__(name='zero_sum', graph=graph)
+        super().__init__(name='zero_sum', graph=graph)
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         melicious_message = get_dec_model_control(self.graph, local_models, node, 
@@ -204,7 +204,7 @@ def get_dec_model_control_weight(graph, messages, node, target_model, weight):
 
 class D_isolation(decentralizedAttack):
     def __init__(self, graph):
-        super(D_isolation, self).__init__(name='isolation', graph=graph)
+        super().__init__(name='isolation', graph=graph)
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
         melicious_message = get_dec_model_control(self.graph, local_models, node, 

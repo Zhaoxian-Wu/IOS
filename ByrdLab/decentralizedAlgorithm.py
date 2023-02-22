@@ -1,24 +1,22 @@
 import torch
 
-from ByrdLab.environment import DecentralizedByzantineEnvironment
+from ByrdLab.environment import Dec_Byz_Opt_Env
 from ByrdLab.library.dataset import EmptySet
-from ByrdLab.DistributedModule import DistributedModule
 from ByrdLab.library.partition import EmptyPartition
-
-from .library.measurements import avg_loss_accuracy_dist, consensus_error
-from .library.tool import log
+from ByrdLab.library.measurements import avg_loss_accuracy_dist, consensus_error
+from ByrdLab.library.tool import log
 
 # alternative: Apatation & Combination
-class DSGD(DecentralizedByzantineEnvironment):
+class DSGD(Dec_Byz_Opt_Env):
     def __init__(self, graph, aggregation, consensus_init=False, *args, **kw):
-        super(DSGD, self).__init__(name='DSGD', graph=graph, *args, **kw)
+        super().__init__(name='DSGD', graph=graph, *args, **kw)
         self.consensus_init = consensus_init
         self.aggregation = aggregation
             
     def run(self):
         self.construct_rng_pack()
         # initialize
-        dist_models = DistributedModule(self.model, self.node_size)
+        dist_models = self.construct_dist_models(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
         loss_path = []
@@ -119,7 +117,7 @@ class DSGD_AWC(DSGD):
     def run(self):
         self.construct_rng_pack()
         # initialize
-        dist_models = DistributedModule(self.model, self.node_size)
+        dist_models = self.construct_dist_models(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
         loss_path = []
@@ -221,17 +219,16 @@ class DSGD_AWC(DSGD):
         return avg_model, loss_path, acc_path, consensus_error_path
     
       
-class RSA_algorithm(DecentralizedByzantineEnvironment):
+class RSA_algorithm(Dec_Byz_Opt_Env):
     def __init__(self, graph, penalty=0.001, consensus_init=False, *args, **kw):
-        super(RSA_algorithm, self).__init__(name=f'RSA_lamb={penalty}',
-                                            graph=graph, *args, **kw)
+        super().__init__(name=f'RSA_lamb={penalty}', graph=graph, *args, **kw)
         self.consensus_init = consensus_init
         self.lamb = penalty
             
     def run(self):
         self.construct_rng_pack()
         # initialize
-        dist_models = DistributedModule(self.model, self.node_size)
+        dist_models = self.construct_dist_models(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
         loss_path = []
@@ -322,9 +319,9 @@ class RSA_algorithm(DecentralizedByzantineEnvironment):
         return avg_model, loss_path, acc_path, consensus_error_path
     
     
-class Decentralized_gossip(DecentralizedByzantineEnvironment):
+class Decentralized_gossip(Dec_Byz_Opt_Env):
     def __init__(self, graph, aggregation, *args, **kw):
-        super(Decentralized_gossip, self).__init__(name='gossip',
+        super().__init__(name='gossip',
                                                    model=None,
                                                    dataset=EmptySet(),
                                                    partition_cls=EmptyPartition,
@@ -360,7 +357,7 @@ class Decentralized_gossip(DecentralizedByzantineEnvironment):
 # Xu, Jian, and Shao-Lun Huang. 
 # "Byzantine-Resilient Decentralized Collaborative Learning." 
 # ICASSP 2022
-class SimiliarityReweighting(DecentralizedByzantineEnvironment):
+class SimiliarityReweighting(Dec_Byz_Opt_Env):
     def __init__(self, graph, c=1, consensus_init=False, *args, **kw):
         super().__init__(name='SimReweight', graph=graph, *args, **kw)
         self.consensus_init = consensus_init
@@ -370,7 +367,7 @@ class SimiliarityReweighting(DecentralizedByzantineEnvironment):
     def run(self):
         self.construct_rng_pack()
         # initialize
-        dist_models = DistributedModule(self.model, self.node_size)
+        dist_models = self.construct_dist_models(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
         loss_path = []
@@ -540,7 +537,7 @@ class DSGD_inner_variation(DSGD):
     def run(self):
         self.construct_rng_pack()
         # initialize
-        dist_models = DistributedModule(self.model, self.node_size)
+        dist_models = self.construct_dist_models(self.model, self.node_size)
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
         loss_path = []

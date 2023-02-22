@@ -1,5 +1,5 @@
 
-from ByrdLab.environment import ByzantineEnvironment
+from ByrdLab.environment import Byz_Env
 import torch
 
 from ByrdLab import FEATURE_TYPE
@@ -9,9 +9,9 @@ from .library.sample import local_sample, local_batch_sample, local_dataset_iter
 from .library.tool import log
 from .library.RandomNumberGenerator import random_rng, torch_rng
 
-class SGD(ByzantineEnvironment):
+class SGD(Byz_Env):
     def __init__(self, *args, **kw):
-        super(SGD, self).__init__(name='SGD', *args, **kw)
+        super().__init__(name='SGD', *args, **kw)
     def run(self, w0):
         self.construct_rng_pack()
         # initialize
@@ -60,9 +60,9 @@ class SGD(ByzantineEnvironment):
             ))
         return w, path, variencePath
 
-class BatchSGD(ByzantineEnvironment):
+class BatchSGD(Byz_Env):
     def __init__(self, batch_size=50, *args, **kw):
-        super(BatchSGD, self).__init__(name='BatchSGD', *args, **kw)
+        super().__init__(name='BatchSGD', *args, **kw)
         self.batch_size = batch_size
     def run(self, w0):
         self.construct_rng_pack()
@@ -114,9 +114,9 @@ class BatchSGD(ByzantineEnvironment):
             ))
         return w, path, variencePath
 
-class SAGA(ByzantineEnvironment):
+class SAGA(Byz_Env):
     def __init__(self, *args, **kw):
-        super(SAGA, self).__init__(name='SAGA', *args, **kw)
+        super().__init__(name='SAGA', *args, **kw)
     def run(self, w0):
         self.construct_rng_pack()
         # initialize
@@ -187,9 +187,9 @@ class SAGA(ByzantineEnvironment):
             ))
         return w, path, variencePath
 
-class SVRG(ByzantineEnvironment):
+class SVRG(Byz_Env):
     def __init__(self, snapshotInterval=6000, *args, **kw):
-        super(SVRG, self).__init__(name='SVRG', *args, **kw)
+        super().__init__(name='SVRG', *args, **kw)
         self.snapshotInterval = snapshotInterval
     def run(self, w0):
         self.construct_rng_pack()
@@ -262,9 +262,9 @@ class SVRG(ByzantineEnvironment):
             ))
         return w, path, variencePath
 
-class SARAH(ByzantineEnvironment):
+class SARAH(Byz_Env):
     def __init__(self, snapshotInterval=6000, *args, **kw):
-        super(SARAH, self).__init__(name='SARAH', *args, **kw)
+        super().__init__(name='SARAH', *args, **kw)
         self.snapshotInterval = snapshotInterval
     def run(self, w0):
         self.construct_rng_pack()
@@ -349,9 +349,9 @@ class SARAH(ByzantineEnvironment):
             ))
         return w, path, variencePath
 
-class ByrD2SAGA(ByzantineEnvironment):
+class ByrD2SAGA(Byz_Env):
     def __init__(self, *args, **kw):
-        super(ByrD2SAGA, self).__init__(name='ByrD2SAGA', *args, **kw)
+        super().__init__(name='ByrD2SAGA', *args, **kw)
     def run(self, w0):
         self.construct_rng_pack()
         # initialize

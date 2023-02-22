@@ -1,17 +1,23 @@
-import random
-
-import torch
-
+from ByrdLab.DistributedModule import DistributedModule
 from ByrdLab.library.dataset import DataPackage, DistributedDataSets
 from ByrdLab.library.partition import Partition, TrivalPartition
 from ByrdLab.library.learnRateController import constant_lr
 from ByrdLab.library.RandomNumberGenerator import RngPackage
 
-class IterativeEnvironment():
+class AlgorithmEnvironment():
+    def __init__(self, name, *args, **kw) -> None:
+        self.name = name
+        
+    def run(self, *args, **kw):
+        raise NotImplementedError
+
+
+# Iterative Environment
+class IterativeEnvironment(AlgorithmEnvironment):
     '''
     A base class for any algorithm requiring iteration
     '''
-    def __init__(self, name, lr, lr_ctrl=None,
+    def __init__(self, name, 
                  rounds=10, display_interval=1000, total_iterations=None,
                  seed=None, fix_seed=False,
                  *args, **kw):
@@ -25,12 +31,11 @@ class IterativeEnvironment():
                             'total_iterations' has to satisfy 
                             display_interval * rounds = total_iterations
         '''
+        super().__init__(name=name, *args, **kw)
         
         assert not fix_seed or seed != None
     
         # algorithm information
-        self.name = name
-        self.lr = lr
         self.seed = seed
         self.fix_seed = fix_seed
         
@@ -49,13 +54,6 @@ class IterativeEnvironment():
         
         # random number generator
         self.rng_pack = RngPackage(seed=None)
-        
-        # learning rate controller
-        if lr_ctrl is None:
-            self.lr_ctrl = constant_lr()
-        else:
-            self.lr_ctrl = lr_ctrl
-        self.lr_ctrl.set_init_lr(lr)
             
     def construct_rng_pack(self):
         # construct random number generator
@@ -77,20 +75,49 @@ class IterativeEnvironment():
             else:
                 self.name += f'_{params_value}'
             
-
-class ByzantineEnvironment(IterativeEnvironment):
+            
+# Optimization Environment
+class Opt_Env(IterativeEnvironment):
     def __init__(self, name, lr, model, weight_decay, 
                  data_package: DataPackage, 
                  loss_fn, test_fn, initialize_fn=None, lr_ctrl=None,
                  get_train_iter=None, get_test_iter=None, 
-                 partition_cls: Partition=TrivalPartition, 
-                 honest_size=-1, byzantine_size=-1, 
-                 honest_nodes=None, byzantine_nodes=None, attack=None,
                  rounds=10, display_interval=1000, total_iterations=None,
                  seed=None, fix_seed=False,
                  *args, **kw):
-        super().__init__(name, lr, lr_ctrl, rounds, display_interval,
-                         total_iterations, seed, fix_seed)
+        super().__init__(name=name, rounds=rounds, 
+                         display_interval=display_interval,
+                         total_iterations=total_iterations, 
+                         seed=seed, fix_seed=fix_seed,
+                         *args, **kw)
+        
+        # ====== define properties ======
+        self.model = model
+        self.initialize_fn = initialize_fn
+        
+        # ====== learning rate controller ======
+        self.lr = lr
+        if lr_ctrl is None:
+            self.lr_ctrl = constant_lr()
+        else:
+            self.lr_ctrl = lr_ctrl
+        self.lr_ctrl.set_init_lr(lr)
+        
+        # ====== task information ======
+        self.weight_decay = weight_decay
+        self.loss_fn = loss_fn
+        self.test_fn = test_fn
+        self.get_train_iter = get_train_iter
+        self.get_test_iter = get_test_iter
+        self.data_package = data_package
+
+
+# Distributed Environment in the present of Byzantine node
+class Byz_Env(AlgorithmEnvironment):
+    def __init__(self, honest_size=-1, byzantine_size=-1, 
+                 honest_nodes=None, byzantine_nodes=None, attack=None,
+                 *args, **kw):
+        super().__init__(*args, **kw)
 
         # ====== check validity ======
         assert (honest_nodes is not None and honest_size < 0) \
@@ -116,29 +143,17 @@ class ByzantineEnvironment(IterativeEnvironment):
         self.nodes = sorted(self.honest_nodes + self.byzantine_nodes)
         self.node_size = self.honest_size + self.byzantine_size
         
-        # ====== define properties ======
         assert self.byzantine_size == 0 or attack != None
         self.attack = attack
-        self.model = model
-        self.initialize_fn = initialize_fn
-        
-        # ====== task information ======
-        self.weight_decay = weight_decay
-        self.loss_fn = loss_fn
-        self.test_fn = test_fn
-        self.get_train_iter = get_train_iter
-        self.get_test_iter = get_test_iter
 
-        # ====== distribute dataset ======
-        self.data_package = data_package
-        dist_train_set = DistributedDataSets(dataset=data_package.train_set, 
-                                             partition_cls=partition_cls,
-                                             nodes=self.nodes,
-                                             honest_nodes=self.honest_nodes,
-                                             rng_pack=self.rng_pack)
-        self.partition_name = dist_train_set.partition.name
-        self.dist_train_set = dist_train_set
-    
+
+class Dist_Model_Env(Byz_Env):
+    def __init__(self, *args, **kw): 
+        super().__init__(*args, **kw)
+        
+    def construct_dist_models(self, model, node_size):
+        return DistributedModule(model, node_size)
+        
     def initilize_models(self, dist_models, consensus=False):
         if self.initialize_fn is None:
             return
@@ -147,17 +162,46 @@ class ByzantineEnvironment(IterativeEnvironment):
             model = dist_models.model
             seed = self.seed if consensus else node + self.seed
             self.initialize_fn(model, fix_init_model=self.fix_seed, seed=seed)
+
+
+class Dist_Dataset_Opt_Env(Byz_Env, Opt_Env):
+    def __init__(self, partition_cls: Partition=TrivalPartition, 
+                 *args, **kw): 
+        super().__init__(*args, **kw)
         
-    def run(self, *args, **kw):
-        raise NotImplementedError
+        train_set = self.data_package.train_set
+        # ====== distribute dataset ======
+        dist_train_set = DistributedDataSets(dataset=train_set, 
+                                             partition_cls=partition_cls,
+                                             nodes=self.nodes,
+                                             honest_nodes=self.honest_nodes,
+                                             rng_pack=self.rng_pack)
+        self.partition_name = dist_train_set.partition.name
+        self.dist_train_set = dist_train_set
 
 
-class DecentralizedByzantineEnvironment(ByzantineEnvironment):
+# Decentralized Optimization Environment in the presence of Byzantine nodes
+class Dec_Byz_Opt_Env(
+    Dist_Model_Env, Dist_Dataset_Opt_Env
+):
     def __init__(self, graph, *args, **kw):
-        super(DecentralizedByzantineEnvironment, self).__init__(
+        super().__init__(
             honest_nodes=graph.honest_nodes,
             byzantine_nodes=graph.byzantine_nodes,
             *args, **kw
         )
         self.graph = graph
         
+        
+# Decentralized Iterative Environment in the presence of Byzantine nodes
+class Dec_Byz_Iter_Env(
+    IterativeEnvironment, Dist_Model_Env
+):
+    def __init__(self, graph, *args, **kw):
+        super().__init__(
+            honest_nodes=graph.honest_nodes,
+            byzantine_nodes=graph.byzantine_nodes,
+            *args, **kw
+        )
+        self.graph = graph
+    
