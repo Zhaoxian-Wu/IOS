@@ -1,4 +1,4 @@
-from ByrdLab.library.dataset import DataPackage
+from ByrdLab.library.dataset import DataPackage, StackedDataSet
 from ByrdLab import FEATURE_TYPE, VALUE_TYPE
 from ByrdLab.library.RandomNumberGenerator import RngPackage, torch_rng
 from functools import partial
@@ -48,7 +48,8 @@ class LeastSquareToySet(DataPackage):
         Y.add_(torch.randn(Y.shape, dtype=VALUE_TYPE, generator=generator),
                alpha=noise)
         name = f'ToySet_D={dimension}_N={set_size}'
-        super().__init__(name=name, features=X, targets=Y)
+        dataset = StackedDataSet(features=X, targets=Y)
+        super().__init__(name=name, train_set=dataset, test_set=dataset)
 
 class LeastSquareToyTask(Task):
     def __init__(self):
@@ -59,9 +60,9 @@ class LeastSquareToyTask(Task):
         dimension = 200
         data_cnt = 50
         
-        dataset = LeastSquareToySet(data_cnt, dimension, 
-                                    # noise=0, 
-                                    fix_seed=True)
+        data_package = LeastSquareToySet(data_cnt, dimension, 
+                                         # noise=0, 
+                                         fix_seed=True)
         
         super_params = {
             'rounds': 20,
@@ -75,14 +76,16 @@ class LeastSquareToyTask(Task):
             'lr': 3e-2,
         }
         get_train_iter = train_full_batch_generator
-        get_test_iter = partial(test_full_batch_generator, dataset=dataset)
+        get_test_iter = partial(test_full_batch_generator, 
+                                dataset=data_package.test_set)
         loss_fn = least_square_loss
-        super().__init__(weight_decay=0, data_package=dataset, model=model,
+        super().__init__(weight_decay=0, data_package=data_package, model=model,
                          loss_fn=loss_fn, 
+                         test_fn=None,
                          get_train_iter=get_train_iter,
                          get_test_iter=get_test_iter,
                          initialize_fn=RandomInitialize(),
                          super_params=super_params,
-                         name=f'LS_{dataset.name}', model_name='LinearModel')
+                         name=f'LS_{data_package.name}', model_name='LinearModel')
         
 
