@@ -46,6 +46,11 @@ class StackedDataSet():
 
         self.set_size = set_size
         self.__COUNT = None
+        
+        ARBITRARY_DATA_SAMPLE = features[0]
+        self.feature_dimension = ARBITRARY_DATA_SAMPLE.nelement()
+        self.feature_size = ARBITRARY_DATA_SAMPLE.size()
+        
     def get_count(self):
         if self.__COUNT is None:
             count = {}
@@ -101,16 +106,11 @@ class DataPackage():
         assert len(train_set) != 0, 'No data in train set'
         assert len(test_set) != 0, 'No data in test set'
         
-        IDX_ARBITRARY_DATA_SAMPLE = 0
-        IDX_FEATURE = 0
-        train_sample_feature = train_set[IDX_ARBITRARY_DATA_SAMPLE][IDX_FEATURE]
-        test_sample_feature = test_set[IDX_ARBITRARY_DATA_SAMPLE][IDX_FEATURE]
+        assert train_set.feature_dimension == test_set.feature_dimension
+        assert train_set.feature_size == test_set.feature_size
         
-        assert train_sample_feature.nelement() == test_sample_feature.nelement()
-        assert train_sample_feature.size() == test_sample_feature.size()
-        
-        self.feature_dimension = train_sample_feature.nelement()
-        self.feature_size = train_sample_feature.size()
+        self.feature_dimension = train_set.feature_dimension
+        self.feature_size = train_set.feature_size
         
         
 class SVM_dataPackage(DataPackage):
@@ -137,9 +137,7 @@ class SVM_dataPackage(DataPackage):
             
         dataset = StackedDataSet(features, targets)
             
-        super(SVM_dataPackage, self).__init__(name=name, 
-                                              train_set=dataset,
-                                              test_set=dataset)
+        super().__init__(name=name, train_set=dataset, test_set=dataset)
         self._finding_type = finding_type
 
 __DATASET_PATH__ = os.path.join(
@@ -149,7 +147,7 @@ __DATASET_PATH__ = os.path.join(
 
 class ijcnn(SVM_dataPackage):
     def __init__(self):
-        super(ijcnn, self).__init__(
+        super().__init__(
             set_size = 49990,
             dimension = 22,
             finding_type = '1',
@@ -160,7 +158,7 @@ class ijcnn(SVM_dataPackage):
 
 class covtype(SVM_dataPackage):
     def __init__(self):
-        super(covtype, self).__init__(
+        super().__init__(
             set_size = 581012,
             dimension = 54,
             finding_type = '1',
@@ -266,8 +264,7 @@ class LogisticRegressionToySet(DataPackage):
         # add noise
         X.add_(torch.randn_like(X), alpha=noise)
         
-        super(LogisticRegressionToySet, self).__init__(name='ToySet',
-                                                       features=X, targets=Y)
+        super().__init__(name='ToySet', features=X, targets=Y)
 
     
 class DistributedDataSets():

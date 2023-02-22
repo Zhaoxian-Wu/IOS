@@ -11,7 +11,7 @@ class learningRateController():
     
 class constant_lr(learningRateController):
     def __init__(self):
-        super(constant_lr, self).__init__(name='constLR')
+        super().__init__(name='constLR')
     def get_lr(self, iteration):
         return self.init_lr
     
@@ -26,7 +26,7 @@ class one_over_sqrt_k_lr(learningRateController):
         # we choose proper constant so that 
         # variable 'decreasing_factor' is 1 at iteration 1 and
         # 1/final_proportion at iteration 'total_iteration'
-        super(one_over_sqrt_k_lr, self).__init__(name='invSqrtLR')
+        super().__init__(name='invSqrtLR')
         if a == None or b == None:
             b = (total_iteration * final_proportion**2) \
                 / (1 - final_proportion**2)
@@ -49,7 +49,7 @@ class one_over_k_lr(learningRateController):
         # we choose proper constant so that 
         # variable 'decreasing_factor' is 1 at iteration 1 and
         # 1/final_proportion at iteration 'total_iteration'
-        super(one_over_k_lr, self).__init__(name='invLR')
+        super().__init__(name='invLR')
         if a == None or b == None:
             b = (total_iteration * final_proportion - 1) \
              / (1 - final_proportion)
@@ -65,7 +65,7 @@ class one_over_k_lr(learningRateController):
 class ladder_lr(learningRateController):
     def __init__(self, decreasing_iter_ls=[], proportion_ls=[]):
         assert len(decreasing_iter_ls) == len(proportion_ls)
-        super(ladder_lr, self).__init__(name='ladderLR')
+        super().__init__(name='ladderLR')
         self.decreasing_iter_ls = decreasing_iter_ls.copy()
         self.proportion_ls = proportion_ls.copy()
         if len(self.decreasing_iter_ls) == 0 or self.decreasing_iter_ls[0] != 0:

@@ -27,7 +27,7 @@ class Partition():
 class HorizotalPartition(Partition):
     def __init__(self, name, partition):
         self.partition = partition
-        super(HorizotalPartition, self).__init__(name, partition)
+        super().__init__(name, partition)
     def get_subsets(self, dataset):
         return [
             StackedDataSet(features=dataset[p][0], targets=dataset[p][1])
@@ -38,7 +38,7 @@ class HorizotalPartition(Partition):
 class EmptyPartition(HorizotalPartition):
     def __init__(self, dataset, node_cnt, rng_pack: RngPackage=RngPackage()):
         partition = [[] for _ in range(node_cnt)]
-        super(EmptyPartition, self).__init__('EmptyPartition', partition)
+        super().__init__('EmptyPartition', partition)
     
     
 class TrivalPartition(HorizotalPartition):
@@ -52,7 +52,7 @@ class TrivalPartition(HorizotalPartition):
         # Node i have the dataset indexed by [l(n), r(n))
         partition = [list(range(seperation[i], seperation[i+1]))
                                 for i in range(node_cnt)]
-        super(TrivalPartition, self).__init__('TrivalDist', partition)
+        super().__init__('TrivalDist', partition)
 
 class iidPartition(HorizotalPartition):
     def __init__(self, dataset, node_cnt, rng_pack: RngPackage=RngPackage()) -> None:
@@ -66,12 +66,12 @@ class iidPartition(HorizotalPartition):
         # Node i have the dataset indexed by [l(n), r(n))
         partition = [[indexes[i] for i in range(sep[node], sep[node+1])]
                                 for node in range(node_cnt)]
-        super(iidPartition, self).__init__('iidPartition', partition)
+        super().__init__('iidPartition', partition)
 
 class SharedData(HorizotalPartition):
     def __init__(self, dataset, node_cnt, *args, **kw) -> None:
         partition = [list(range(len(dataset)))] * node_cnt
-        super(SharedData, self).__init__('SharedData', partition)
+        super().__init__('SharedData', partition)
         
 class LabelSeperation(HorizotalPartition):
     def __init__(self, dataset, node_cnt, *args, **kw):
@@ -88,7 +88,7 @@ class LabelSeperation(HorizotalPartition):
             partition = self.partition_with_adaquate_nodes()
         else:
             partition = self.partition_with_adaquate_classes()
-        super(LabelSeperation, self).__init__('LabelSeperation', partition)
+        super().__init__('LabelSeperation', partition)
         
     def partition_with_adaquate_classes(self):
         '''
@@ -147,10 +147,12 @@ class LabelSeperation(HorizotalPartition):
         
         
 class VerticalPartition(Partition):
-    def __init__(self, dataset, node_cnt) -> None:
+    def __init__(self, dataset: StackedDataSet, 
+                 node_cnt: int, *args, **kw) -> None:
+        feature_dimension = dataset.feature_dimension
         # data seperation, with the form of [d(0), d(1), d(2), ..., d(n)]
         # Node i have the dataset indexed by [d(i), d(i+1))
-        seperation = [(i*dataset.feature_dimension) // node_cnt
+        seperation = [(i*feature_dimension) // node_cnt
                       for i in range(node_cnt+1)]
         # data partition, with the form of 
         # [[l(0), r(0)], [l(1), r(1)], ..., [l(n), r(n)]]
