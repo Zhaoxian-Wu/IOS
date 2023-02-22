@@ -12,7 +12,7 @@ from ByrdLab.tasks import Task
 
 class softmaxRegression_model(torch.nn.Module):
     def __init__(self, feature_dimension, num_classes):
-        super(softmaxRegression_model, self).__init__()
+        super().__init__()
         self.linear = torch.nn.Linear(in_features=feature_dimension,
                                       out_features=num_classes, bias=True)
     def forward(self, features):

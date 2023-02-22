@@ -41,7 +41,7 @@ class LogisticRegressionTask(Task):
 
 class logisticRegression_model(torch.nn.Module):
     def __init__(self, feature_dimension):
-        super(logisticRegression_model, self).__init__()
+        super().__init__()
         self.linear = torch.nn.Linear(in_features=feature_dimension,
                                       out_features=1, bias=True)
     def forward(self, features):

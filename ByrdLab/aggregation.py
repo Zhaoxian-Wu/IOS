@@ -238,7 +238,7 @@ class DecentralizedAggregation():
 
 class D_mean(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_mean, self).__init__(name='mean', graph=graph)
+        super().__init__(name='mean', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
@@ -247,7 +247,7 @@ class D_mean(DecentralizedAggregation):
 
 class D_no_communication(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_no_communication, self).__init__(name='no_communication',
+        super().__init__(name='no_communication',
                                                  graph=graph)
 
     def run(self, local_models, node):
@@ -256,7 +256,7 @@ class D_no_communication(DecentralizedAggregation):
 
 class D_meanW(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_meanW, self).__init__(name='meanW', graph=graph)
+        super().__init__(name='meanW', graph=graph)
         self.W = MH_rule(graph)
 
     def run(self, local_models, node):
@@ -265,7 +265,7 @@ class D_meanW(DecentralizedAggregation):
 
 class D_median(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_median, self).__init__(name='median', graph=graph)
+        super().__init__(name='median', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
@@ -274,7 +274,7 @@ class D_median(DecentralizedAggregation):
 
 class D_geometric_median(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_geometric_median, self).__init__(name='geometric_median',
+        super().__init__(name='geometric_median',
                                                  graph=graph)
 
     def run(self,  local_models, node):
@@ -284,7 +284,7 @@ class D_geometric_median(DecentralizedAggregation):
 
 class D_Krum(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_Krum, self).__init__(name='Krum', graph=graph)
+        super().__init__(name='Krum', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
@@ -293,7 +293,7 @@ class D_Krum(DecentralizedAggregation):
 
 class D_mKrum(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_mKrum, self).__init__(name='mKrum', graph=graph)
+        super().__init__(name='mKrum', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.neighbor_models_and_itself(local_models, node)
@@ -306,7 +306,7 @@ class D_mKrum(DecentralizedAggregation):
 
 class D_trimmed_mean(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_trimmed_mean, self).__init__(name='trimmed_mean', graph=graph)
+        super().__init__(name='trimmed_mean', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.all_neighbor_models(local_models, node)
@@ -319,7 +319,7 @@ class D_trimmed_mean(DecentralizedAggregation):
 
 class D_remove_outliers(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_remove_outliers, self).__init__(name='remove_outliers',
+        super().__init__(name='remove_outliers',
                                                 graph=graph)
 
     def run(self, local_models, node):
@@ -334,7 +334,7 @@ class D_remove_outliers(DecentralizedAggregation):
 
 class D_faba(DecentralizedAggregation):
     def __init__(self, graph):
-        super(D_faba, self).__init__(name='FABA', graph=graph)
+        super().__init__(name='FABA', graph=graph)
 
     def run(self, local_models, node):
         neighbor_models = self.all_neighbor_models(local_models, node)
@@ -457,7 +457,7 @@ class D_ios_equal_neigbor_weight(DecentralizedAggregation):
 class D_brute(DecentralizedAggregation):
     def __init__(self, graph):
         self.byzantine_sizes = graph.byzantine_sizes
-        super(D_brute, self).__init__(name='Brute', graph=graph)
+        super().__init__(name='Brute', graph=graph)
     def run(self, local_models, node):
         local_model = local_models[node]
         agg = brute(local_model, byzantine_size=self.byzantine_sizes[node])
@@ -467,7 +467,7 @@ class D_brute(DecentralizedAggregation):
 class D_bulyan(DecentralizedAggregation):
     def __init__(self, graph):
         self.byzantine_sizes = graph.byzantine_sizes
-        super(D_bulyan, self).__init__(name='Bulyan', graph=graph)
+        super().__init__(name='Bulyan', graph=graph)
 
     def run(self, local_models, node):
         local_model = local_models[node]
