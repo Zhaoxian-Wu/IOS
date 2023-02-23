@@ -541,7 +541,7 @@ class D_self_centered_clipping(DecentralizedAggregation):
         local_model = local_models[node]
 
         weighted_avg_norm = sum([
-            self.W[node][n]*(local_models[n]-local_model).norm()
+            self.W[node][n]*(local_models[n]-local_model).norm()**2
             for n in self.graph.honest_neighbors[node]
         ])
         cum_weight = sum([
