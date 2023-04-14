@@ -1,6 +1,6 @@
 import torch
 
-from ByrdLab.environment import Dec_Byz_Opt_Env
+from ByrdLab.environment import Dec_Byz_Iter_Env, Dec_Byz_Opt_Env
 from ByrdLab.library.dataset import EmptySet
 from ByrdLab.library.partition import EmptyPartition
 from ByrdLab.library.measurements import avg_loss_accuracy_dist, consensus_error
@@ -319,17 +319,12 @@ class RSA_algorithm(Dec_Byz_Opt_Env):
         return avg_model, loss_path, acc_path, consensus_error_path
     
     
-class Decentralized_gossip(Dec_Byz_Opt_Env):
+class Decentralized_gossip(Dec_Byz_Iter_Env):
     def __init__(self, graph, aggregation, *args, **kw):
-        super().__init__(name='gossip',
-                                                   model=None,
-                                                   dataset=EmptySet(),
-                                                   partition_cls=EmptyPartition,
-                                                   loss_fn=None,
-                                                   lr=0, weight_decay=0, 
-                                                   graph=graph, *args, **kw)
+        super().__init__(name='gossip', graph=graph, *args, **kw)
         self.aggregation = aggregation
     def run(self, init_local_models = None):
+        # reture_model_list: whether return the history list of all models
         self.construct_rng_pack()
         local_models = torch.zeros_like(init_local_models)
         local_models.copy_(init_local_models)
@@ -343,7 +338,7 @@ class Decentralized_gossip(Dec_Byz_Opt_Env):
                 # Byzantine attack
                 byzantine_neighbors_size = self.graph.byzantine_sizes[node]
                 if self.attack != None and byzantine_neighbors_size != 0:
-                    self.attack.run(old_local_models, node)
+                    self.attack.run(old_local_models, node, self.rng_pack)
                 # aggregation
                 local_models[node] = self.aggregation.run(old_local_models, node)
             
