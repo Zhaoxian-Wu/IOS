@@ -289,9 +289,14 @@ class DistributedDataSets():
         return self.dataset
     
     
-class EmptySet(DataPackage):
+class EmptySet(StackedDataSet):
     def __init__(self):
-        super().__init__(name='EmptySet', 
-                         features=torch.zeros(0), targets=torch.zeros(0), 
-                         test_features=torch.zeros(0), test_targets=torch.zeros(0))
+        super().__init__(features=torch.zeros(1, 1), targets=torch.zeros(1, 1))
     
+    
+class EmptyPackage(DataPackage):
+    def __init__(self):
+        train_set = EmptySet()
+        test_set = EmptySet()
+        super().__init__(name='EmptySet', 
+                         train_set=train_set, test_set=test_set)
