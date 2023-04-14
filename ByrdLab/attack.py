@@ -69,10 +69,10 @@ def same_value_attack(messages, honest_nodes, byzantine_nodes, scale=1,
     for node in honest_nodes:
         # c += messages[node].mean().item()
         c += messages[node].mean().item() / len(honest_nodes)
-    melicious_message = scale*c*torch.ones(messages.size(1))
-    melicious_message /= math.sqrt(messages.size(1))
+    model_dim = messages.size(1)
+    attack_value = scale*c / math.sqrt(model_dim)
     for node in byzantine_nodes:
-        messages[node].copy_(melicious_message)
+        messages[node].copy_(attack_value)
         noise = torch.randn(messages.size(1), dtype=FEATURE_TYPE, generator=rng)
         messages[node].add_(noise, alpha=noise_scale)
     
@@ -235,6 +235,43 @@ class D_sample_duplicate(decentralizedAttack):
         duplicate_index = rng_pack.random.choice(honest_neighbors)
         for n in byzantine_neigbors:
             local_models[n].copy_(local_models[duplicate_index])
+        
+
+class D_same_value(decentralizedAttack):
+    def __init__(self, graph, scale=None, noise_scale=None, value=None):
+        name = 'same_value'
+        if scale is None:
+            scale = 1
+        else:
+            name += f'_scale={scale:.1f}'
+        if noise_scale is None:
+            noise_scale = 0
+        else:
+            name += f'_noise_scale={noise_scale:.1f}'
+        if value is not None:
+            name += f'_value={value:.1f}'
+        super().__init__(name=name, graph=graph)
+        self.scale = scale
+        self.noise_scale = noise_scale
+        self.value = value
+    def get_attack_value(self, local_models, node):
+        honest_neighbors = self.graph.honest_neighbors[node]
+        if self.value is None:
+            c = 0
+            for node in honest_neighbors:
+                c += local_models[node].mean().item() / len(honest_neighbors)
+            model_dim = local_models.size(1)
+            return self.scale*c / math.sqrt(model_dim)
+        else:
+            return self.value
+    def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
+        attack_value = self.get_attack_value(local_models, node)
+        byzantine_neigbors = self.graph.byzantine_neighbors[node]
+        for node in byzantine_neigbors:
+            local_models[node] = attack_value
+            noise = torch.randn(local_models.size(1), dtype=FEATURE_TYPE, 
+                                generator=rng_pack.torch)
+            local_models[node].add_(noise, alpha=self.noise_scale)
         
 # A Little is Enough
 class D_alie(decentralizedAttack):
