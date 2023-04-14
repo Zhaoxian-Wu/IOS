@@ -305,14 +305,30 @@ class D_mKrum(DecentralizedAggregation):
 
 
 class D_trimmed_mean(DecentralizedAggregation):
-    def __init__(self, graph):
-        super().__init__(name='trimmed_mean', graph=graph)
+    def __init__(self, graph, exact_byz_cnt=True, byz_cnt=-1):
+        if exact_byz_cnt:
+            name = 'trimmed_mean'
+        else:
+            if byz_cnt < 0:
+                name = 'trimmed_mean_max'
+            else:
+                name = f'trimmed_mean_{byz_cnt}'
+        super().__init__(name=name, graph=graph)
+
+        self.exact_byz_cnt = exact_byz_cnt
+        self.Byz_cnt = byz_cnt
 
     def run(self, local_models, node):
+        if self.exact_byz_cnt:
+            estimate_byz_cnt = self.graph.byzantine_sizes[node]
+        else:
+            if self.Byz_cnt < 0:
+                estimate_byz_cnt = max(self.graph.byzantine_sizes)
+            else:
+                estimate_byz_cnt = self.Byz_cnt
         neighbor_models = self.all_neighbor_models(local_models, node)
-        q = self.graph.byzantine_sizes[node]
-        tm = trimmed_mean(neighbor_models, byzantine_size=q)
-        trimmed_neighbor_size = len(neighbor_models) - 2 * q
+        tm = trimmed_mean(neighbor_models, byzantine_size=estimate_byz_cnt)
+        trimmed_neighbor_size = len(neighbor_models) - 2 * estimate_byz_cnt
         local_model = local_models[node]
         return (tm * trimmed_neighbor_size + local_model) / (trimmed_neighbor_size + 1)
 
@@ -349,7 +365,6 @@ class D_faba(DecentralizedAggregation):
 
 class D_ios(DecentralizedAggregation):
     def __init__(self, graph, exact_byz_cnt=True, byz_cnt=-1):
-        assert exact_byz_cnt or byz_cnt > 0
         if exact_byz_cnt:
             name = 'IOS'
         else:
@@ -379,7 +394,7 @@ class D_ios(DecentralizedAggregation):
             estimate_byz_cnt = self.graph.byzantine_sizes[node]
         else:
             if self.Byz_cnt < 0:
-                estimate_byz_cnt = self.graph.byzantine_sizes.max()
+                estimate_byz_cnt = max(self.graph.byzantine_sizes)
             else:
                 estimate_byz_cnt = self.Byz_cnt
         for _ in range(estimate_byz_cnt):
