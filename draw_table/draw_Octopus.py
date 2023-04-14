@@ -1,4 +1,4 @@
-# python draw_decentralized_table.py --task SR_mnist --graph Octopus_head=6_headb=0_handb=2 --partition LabelSeperation
+# python draw_Octopus.py --task SR_mnist --graph Octopus_head=6_headb=0_handb=2 --partition LabelSeperation
 
 import math
 import matplotlib.pyplot as plt
@@ -23,6 +23,8 @@ parser.add_argument('--workspace', type=str, nargs='+', default=[],
     help='workspace')
 parser.add_argument('--mark_on_title', type=str, default='',
     help='mark_on_title')
+parser.add_argument('--table-path', type=str, default='',
+    help='path where the table is stored')
 
 args = parser.parse_args()
 
@@ -54,25 +56,27 @@ if args.partition == 'iidPartition':
 elif args.partition == 'LabelSeperation':
     scc_para = ('SCClip_tau=0.3' , 'SCC')
 else:
-    assert False
+    assert False, 'The parameter of SCC is undefined in this data partition'
 if args.partition == 'iidPartition':
     cc_para = ('CC_tau=0.1' , 'CC')
 elif args.partition == 'LabelSeperation':
     cc_para = ('CC_tau=0.3' , 'CC')
 else:
-    assert False
+    assert False, 'The parameter of CC is undefined in this data partition'
 if args.partition == 'iidPartition':
     rsa_para = ('RSA_lamb=0.001' , 'DRSA')
 elif args.partition == 'LabelSeperation':
     rsa_para = ('RSA_lamb=0.5' , 'DRSA')
 else:
-    assert False
-    
-aggregations = [
-    cc_para,
-    scc_para,
-    ('FABA', 'FABA'), 
-    ('IOS', r'\textbf{IOS (ours)}'), 
+    assert False, 'The parameter of RSA is undefined in this data partition'
+
+agg_groups = [
+    [
+        cc_para, scc_para,
+    ], [
+        ('FABA', 'FABA'), 
+        ('IOS', r'\textbf{IOS (ours)}'), 
+    ]
 ]
 
 # aggregations = [
@@ -102,7 +106,7 @@ attackNames = [
     ('isolation_w', 'isolation'),
     # ('isolation', 'isolation'),
     ('duplicate', 'sample-duplicating'),
-    # ('alie', 'ALIE'),
+    ('alie', 'ALIE'),
 ]
 
 graph_show_names = {
@@ -131,33 +135,25 @@ caption = 'Accuracy (Acc.) and Consensus Error (CE) in ' \
         
 label = 'table:' + graph_label_names[graph_name] + '-' + partition_label_names[partition_name]
 
-header = r'''\begin{table*}[!thbp]
-% \tiny
-% \footnotesize
-\normalsize
-\centering
-% \hspace{-1cm}
-\caption{''' + caption + r'''}
-\label{''' + label + r'''}
-\setlength{\tabcolsep}{1.3mm}{
-\begin{tabular}{'''+ 'c' + '|cc'*len(attackNames) + r'''}
+header = r'''\begin{tabular}{'''+ 'c' + '|cc'*len(attackNames) + r'''}
 \hline\hline
 '''
 
-footer = r'''\hline\hline
+footer = r'''\hline
 \end{tabular}
-}
-\end{table*}
 '''
 
-file_dir = os.path.dirname(os.path.abspath(__file__))
-table_path = os.path.join(file_dir, 'table')
+if args.table_path == '':
+    file_dir = os.path.dirname(os.path.abspath(__file__))
+    table_path = os.path.join(file_dir, 'table')
 
-if not os.path.isdir(table_path):
-    os.makedirs(table_path)
+    if not os.path.isdir(table_path):
+        os.makedirs(table_path)
 
-pic_png_path = os.path.join(table_path, pic_name + '.tex')
-
+    table_path = os.path.join(table_path, pic_name + '.tex')
+else:
+    table_path = args.table_path
+    
 acc_table = {}
 ce_table = {}
 
@@ -188,57 +184,79 @@ def read_ac_ce(attack_code_name, agg_code_name, mark_on_title,
     ce = ce if not math.isnan(ce) and ce < CLIPPING_UPPER_BOUND else CLIPPING_UPPER_BOUND+1
     return acc, ce
 
-for agg_code_name, agg_show_name in aggregations:
-    acc_table[agg_code_name] = {}
-    ce_table[agg_code_name] = {}
-    if agg_code_name == 'no_communication':
-        continue
-    for attack_code_name, attack_show_name in attackNames:
-        acc, ce = read_ac_ce(attack_code_name, agg_code_name, mark_on_title,
-                             task_name, graph_name, partition_name, workspace)        
-        acc_table[agg_code_name][attack_code_name] = acc
-        ce_table[agg_code_name][attack_code_name] = ce
+acc_tables = []
+ce_tables = []
+acc_colors = []
+ce_colors = []
+for aggregations in agg_groups:
+    for agg_code_name, agg_show_name in aggregations:
+        acc_table[agg_code_name] = {}
+        ce_table[agg_code_name] = {}
+        if agg_code_name == 'no_communication':
+            continue
+        for attack_code_name, attack_show_name in attackNames:
+            acc, ce = read_ac_ce(attack_code_name, agg_code_name, mark_on_title,
+                                task_name, graph_name, partition_name, workspace)        
+            acc_table[agg_code_name][attack_code_name] = acc
+            ce_table[agg_code_name][attack_code_name] = ce
 
-acc_color = {
-    agg_code_name: {attack_code_name: ('{', '}') for attack_code_name, _ in attackNames}
-    for agg_code_name, _ in aggregations
-}
-ce_color = {
-    agg_code_name: {attack_code_name: ('{', '}') for attack_code_name, _ in attackNames}
-    for agg_code_name, _ in aggregations
-}
+    acc_color = {
+        agg_code_name: {attack_code_name: ('{', '}') for attack_code_name, _ in attackNames}
+        for agg_code_name, _ in aggregations
+    }
+    ce_color = {
+        agg_code_name: {attack_code_name: ('{', '}') for attack_code_name, _ in attackNames}
+        for agg_code_name, _ in aggregations
+    }
 
-# ==============================================================================
-# mark the largest and smallest items
-for attack_code_name, _ in attackNames:
-    acc_order = [
-        agg_code_name for agg_code_name, _ in aggregations
-    ]
-    ce_order = [
-        agg_code_name for agg_code_name, _ in aggregations
-    ]
+    # ==============================================================================
+    # mark the largest and smallest items
+    for attack_code_name, _ in attackNames:
+        acc_order = [
+            agg_code_name for agg_code_name, _ in aggregations
+        ]
+        ce_order = [
+            agg_code_name for agg_code_name, _ in aggregations
+        ]
+        
+        acc_order.sort(key=lambda agg_code_name: acc_table[agg_code_name][attack_code_name])
+        ce_order.sort(key=lambda agg_code_name: ce_table[agg_code_name][attack_code_name])
+
+        mark_cnt = 0
+        # for i, agg_code_name in enumerate(acc_order):
+        #     if i < mark_cnt:
+        #         acc_color[agg_code_name][attack_code_name] = (r'\red{', '}')
+        #     elif i+mark_cnt >= len(acc_order):
+        #         acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+        # for i, agg_code_name in enumerate(ce_order):
+        #     if i < mark_cnt:
+        #         ce_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+        #     elif i+mark_cnt >= len(ce_order):
+        #         ce_color[agg_code_name][attack_code_name] = (r'\red{', '}')
+        
+        # for i, agg_code_name in enumerate(acc_order):
+        #     if i+mark_cnt >= len(acc_order):
+        #         acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+        
+        # mark largest
+        agg_code_name_largest = acc_order[-1]
+        acc_color[agg_code_name_largest][attack_code_name] = (r'\textbf{', '}')
+        largest_str = f'{acc_table[agg_code_name_largest][attack_code_name]:.2f}'
+        # deal with the situation there are more than 1 larest accuracy
+        for agg_code_name in acc_order[-1::-1]:
+            acc_str = f'{acc_table[agg_code_name][attack_code_name]:.2f}'
+            if largest_str == acc_str:
+                acc_color[agg_code_name][attack_code_name] = (r'\textbf{', '}')
+            else:
+                break
     
-    acc_order.sort(key=lambda agg_code_name: acc_table[agg_code_name][attack_code_name])
-    ce_order.sort(key=lambda agg_code_name: ce_table[agg_code_name][attack_code_name])
-
-    mark_cnt = 0
-    # for i, agg_code_name in enumerate(acc_order):
-    #     if i < mark_cnt:
-    #         acc_color[agg_code_name][attack_code_name] = (r'\red{', '}')
-    #     elif i+mark_cnt >= len(acc_order):
-    #         acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
-    # for i, agg_code_name in enumerate(ce_order):
-    #     if i < mark_cnt:
-    #         ce_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
-    #     elif i+mark_cnt >= len(ce_order):
-    #         ce_color[agg_code_name][attack_code_name] = (r'\red{', '}')
-    
-    for i, agg_code_name in enumerate(acc_order):
-        if i+mark_cnt >= len(acc_order):
-            acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+    acc_tables.append(acc_table)
+    ce_tables.append(ce_table)
+    acc_colors.append(acc_color)
+    ce_colors.append(ce_color)
 # ==============================================================================
 
-with open(pic_png_path, 'w') as f:
+with open(table_path, 'w') as f:
     f.write(header)
     # =================================
     header2 = r'\multirow{2}{*}{}'
@@ -265,31 +283,40 @@ with open(pic_png_path, 'w') as f:
         
     # =================================
     # other attack
-    for agg_code_name, agg_show_name in aggregations:
-        line = agg_show_name
-        for attack_code_name, attack_show_name in attackNames:
-            if agg_code_name == 'no_communication':
-                if attack_code_name != 'baseline':
-                    acc, ce  = '--', '--'
-                else:
-                    acc, ce = read_ac_ce('baseline', 'no_communication', mark_on_title,
-                                         task_name, graph_name, partition_name, workspace)        
-            else:
-                acc = acc_table[agg_code_name][attack_code_name]
-                ce = ce_table[agg_code_name][attack_code_name]
+    for group_idx, aggregations in enumerate(agg_groups):
+        for agg_code_name, agg_show_name in aggregations:
+            line = agg_show_name
+            acc_table = acc_tables[group_idx]
+            ce_table = ce_tables[group_idx]
+            acc_color = acc_colors[group_idx]
+            ce_color = ce_colors[group_idx]
             
-            acc_color_left, acc_color_right = acc_color[agg_code_name][attack_code_name]
-            ce_color_left, ce_color_right = ce_color[agg_code_name][attack_code_name]
-            if ce > CLIPPING_UPPER_BOUND:
-                ce_str = f'$>${CLIPPING_UPPER_BOUND:.0e}'
-            # elif ce < CLIPPING_LOWER_BOUND:
-            #     ce_str = f'$<${CLIPPING_LOWER_BOUND:.0e}'
-            else:
-                ce_str = f'{ce:.0e}'
-            line += ' & ' + acc_color_left + f'{acc:.2f}' + acc_color_right \
-                + ' & ' + ce_color_left + ce_str + ce_color_right
-        f.write(line)
-        f.write(r'\\')
+            for attack_code_name, attack_show_name in attackNames:
+                if agg_code_name == 'no_communication':
+                    if attack_code_name != 'baseline':
+                        acc, ce  = '--', '--'
+                    else:
+                        acc, ce = read_ac_ce('baseline', 'no_communication', mark_on_title,
+                                            task_name, graph_name, partition_name, workspace)        
+                else:
+                    acc = acc_table[agg_code_name][attack_code_name]
+                    ce = ce_table[agg_code_name][attack_code_name]
+                
+                acc_color_left, acc_color_right = acc_color[agg_code_name][attack_code_name]
+                ce_color_left, ce_color_right = ce_color[agg_code_name][attack_code_name]
+                if ce > CLIPPING_UPPER_BOUND:
+                    ce_str = f'$>${CLIPPING_UPPER_BOUND:.0e}'
+                elif ce < CLIPPING_LOWER_BOUND:
+                    ce_str = f'$<${CLIPPING_LOWER_BOUND:.0e}'
+                else:
+                    ce_str = f'{ce:.0e}'
+                line += ' & ' + acc_color_left + f'{acc:.2f}' + acc_color_right \
+                    + ' & ' + ce_color_left + ce_str + ce_color_right
+            f.write(line)
+            f.write(r'\\')
+            f.write('\n')
+        
+        f.write(r'\hline')
         f.write('\n')
             
     f.write(footer)

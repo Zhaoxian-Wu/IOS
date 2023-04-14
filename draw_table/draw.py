@@ -1,9 +1,7 @@
-# python draw_decentralized_table.py --task SR_mnist --graph TwoCastle_k=6_b=2_seed=40 --partition iidPartition
-# python draw_decentralized_table.py --task SR_mnist --graph TwoCastle_k=6_b=2_seed=40 --partition LabelSeperation
-# python draw_decentralized_table.py --task SR_mnist --graph ER_n=12_b=2_p=0.7_seed=300 --partition iidPartition
-# python draw_decentralized_table.py --task SR_mnist --graph ER_n=12_b=2_p=0.7_seed=300 --partition LabelSeperation
-
-# python draw_decentralized_table.py --task SR_mnist --graph Octopus_head=6_headb=0_handb=2 --partition LabelSeperation
+# python draw.py --task SR_mnist --graph TwoCastle_k=6_b=2_seed=40 --partition iidPartition
+# python draw.py --task SR_mnist --graph TwoCastle_k=6_b=2_seed=40 --partition LabelSeperation
+# python draw.py --task SR_mnist --graph ER_n=12_b=2_p=0.7_seed=300 --partition iidPartition
+# python draw.py --task SR_mnist --graph ER_n=12_b=2_p=0.7_seed=300 --partition LabelSeperation
 
 import math
 import matplotlib.pyplot as plt
@@ -30,6 +28,8 @@ parser.add_argument('--mark_on_title', type=str, default='',
     help='mark_on_title')
 parser.add_argument('--dont-show-no-comm', action='store_true',
     help='')
+parser.add_argument('--table-path', type=str, default='',
+    help='path where the table is stored')
 
 args = parser.parse_args()
 
@@ -82,6 +82,7 @@ aggregations = [
     ('geometric_median', 'GeoMed'), 
     ('Krum', 'Krum'), 
     ('trimmed_mean', 'TriMean'),
+    ('SimReweight', 'SimRew'),
     rsa_para,
     cc_para,
     scc_para,
@@ -120,7 +121,7 @@ attackNames = [
     ('isolation_w', 'isolation'),
     # ('isolation', 'isolation'),
     ('duplicate', 'sample-duplicating'),
-    # ('alie', 'ALIE'),
+    ('alie', 'ALIE'),
 ]
 
 graph_show_names = {
@@ -149,39 +150,31 @@ caption = 'Accuracy (Acc.) and Consensus Error (CE) in ' \
         
 label = 'table:' + graph_label_names[graph_name] + '-' + partition_label_names[partition_name]
 
-header = r'''\begin{table*}[!thbp]
-% \tiny
-% \footnotesize
-\normalsize
-\centering
-% \hspace{-1cm}
-\caption{''' + caption + r'''}
-\label{''' + label + r'''}
-\setlength{\tabcolsep}{1.3mm}{
-\begin{tabular}{'''+ 'c' + '|cc'*len(attackNames) + r'''}
+header = r'''\begin{tabular}{'''+ 'c' + '|cc'*len(attackNames) + r'''}
 \hline\hline
 '''
 
 footer = r'''\hline\hline
 \end{tabular}
-}
-\end{table*}
 '''
 
-file_dir = os.path.dirname(os.path.abspath(__file__))
-table_path = os.path.join(file_dir, 'table')
+if args.table_path == '':
+    file_dir = os.path.dirname(os.path.abspath(__file__))
+    table_path = os.path.join(file_dir, 'table')
 
-if not os.path.isdir(table_path):
-    os.makedirs(table_path)
+    if not os.path.isdir(table_path):
+        os.makedirs(table_path)
 
-pic_png_path = os.path.join(table_path, pic_name + '.tex')
+    table_path = os.path.join(table_path, pic_name + '.tex')
+else:
+    table_path = args.table_path
 
 acc_table = {}
 ce_table = {}
 
 def read_ac_ce(attack_code_name, agg_code_name, mark_on_title,
                 task_name, graph_name, partition_name, workspace):
-    if agg_code_name[:3] != 'RSA':
+    if agg_code_name[:3] != 'RSA' and agg_code_name[:3] != 'Sim' :
         file_name = 'DSGD_' + attack_code_name + '_' + agg_code_name \
             + '_invSqrtLR' + mark_on_title
     else:
@@ -213,7 +206,7 @@ for agg_code_name, agg_show_name in aggregations:
         continue
     for attack_code_name, attack_show_name in attackNames:
         acc, ce = read_ac_ce(attack_code_name, agg_code_name, mark_on_title,
-                             task_name, graph_name, partition_name, workspace)        
+                             task_name, graph_name, partition_name, workspace)
         acc_table[agg_code_name][attack_code_name] = acc
         ce_table[agg_code_name][attack_code_name] = ce
 
@@ -239,7 +232,7 @@ for attack_code_name, _ in attackNames:
     acc_order.sort(key=lambda agg_code_name: acc_table[agg_code_name][attack_code_name])
     ce_order.sort(key=lambda agg_code_name: ce_table[agg_code_name][attack_code_name])
 
-    mark_cnt = 0
+    # mark_cnt = 0
     # for i, agg_code_name in enumerate(acc_order):
     #     if i < mark_cnt:
     #         acc_color[agg_code_name][attack_code_name] = (r'\red{', '}')
@@ -251,12 +244,25 @@ for attack_code_name, _ in attackNames:
     #     elif i+mark_cnt >= len(ce_order):
     #         ce_color[agg_code_name][attack_code_name] = (r'\red{', '}')
     
-    for i, agg_code_name in enumerate(acc_order):
-        if i+mark_cnt >= len(acc_order):
-            acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+    # for i, agg_code_name in enumerate(acc_order):
+    #     if i+mark_cnt >= len(acc_order):
+    #         acc_color[agg_code_name][attack_code_name] = (r'\blue{', '}')
+    
+    # mark largest
+    agg_code_name_largest = acc_order[-1]
+    acc_color[agg_code_name_largest][attack_code_name] = (r'\textbf{', '}')
+    largest_str = f'{acc_table[agg_code_name_largest][attack_code_name]:.2f}'
+    # deal with the situation there are more than 1 larest accuracy
+    for agg_code_name in acc_order[-1::-1]:
+        acc_str = f'{acc_table[agg_code_name][attack_code_name]:.2f}'
+        if largest_str == acc_str:
+            acc_color[agg_code_name][attack_code_name] = (r'\textbf{', '}')
+        else:
+            break
+    
 # ==============================================================================
 
-with open(pic_png_path, 'w') as f:
+with open(table_path, 'w') as f:
     f.write(header)
     # =================================
     header2 = r'\multirow{2}{*}{}'
@@ -291,7 +297,12 @@ with open(pic_png_path, 'w') as f:
             else:
                 acc, ce = read_ac_ce('baseline', 'no_communication', mark_on_title,
                                         task_name, graph_name, partition_name, workspace)
-                ce_str = f'{ce:.0e}' if ce < CLIPPING_UPPER_BOUND else f'$>${CLIPPING_UPPER_BOUND:.0e}'
+                if ce > CLIPPING_UPPER_BOUND:
+                    ce_str = f'$>${CLIPPING_UPPER_BOUND:.0e}'
+                elif ce < CLIPPING_LOWER_BOUND:
+                    ce_str = f'$<${CLIPPING_LOWER_BOUND:.0e}'
+                else:
+                    ce_str = f'{ce:.0e}'
                 line += ' & ' + f'{acc:.2f}' + ' & ' + ce_str
         f.write(line)
         f.write(r'\\')
@@ -318,8 +329,8 @@ with open(pic_png_path, 'w') as f:
             ce_color_left, ce_color_right = ce_color[agg_code_name][attack_code_name]
             if ce > CLIPPING_UPPER_BOUND:
                 ce_str = f'$>${CLIPPING_UPPER_BOUND:.0e}'
-            # elif ce < CLIPPING_LOWER_BOUND:
-            #     ce_str = f'$<${CLIPPING_LOWER_BOUND:.0e}'
+            elif ce < CLIPPING_LOWER_BOUND:
+                ce_str = f'$<${CLIPPING_LOWER_BOUND:.0e}'
             else:
                 ce_str = f'{ce:.0e}'
             line += ' & ' + acc_color_left + f'{acc:.2f}' + acc_color_right \
