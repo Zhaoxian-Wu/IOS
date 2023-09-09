@@ -182,7 +182,7 @@ class TwoCastle(Graph):
         edges_list = [(i, j) for i in range(k)
                       for j in range(k, 2*k) if i + k != j]
         graph.add_edges_from(edges_list)
-        byzantine_nodes = rng.sample(graph.nodes(), byzantine_size)
+        byzantine_nodes = rng.sample(list(graph.nodes()), byzantine_size)
         honest_nodes = [i for i in graph.nodes() if i not in byzantine_nodes]
         name = f'TwoCastle_k={k}_b={byzantine_size}'
         if seed is not None:
