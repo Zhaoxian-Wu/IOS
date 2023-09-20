@@ -35,10 +35,16 @@ class DistributedModule():
                 cumulated_param += param_size
                 
                 if node != self.AVG_MODEL_INDEX:
+
+                    # Here is the shallow copy and 
+                    # the data in self.params_vec will changes if that in model changes
+                    # if: self.params_vec[node][beg:end].clone(),  the code will be faulty
                     vec = self.params_vec[node][beg:end]
                 else:
                     vec = self.param_avg[beg:end]
-                    
+                
+                # view_as() function makes the shallow copy operation
+                # if vec.view_as(param).clone() the code will be faulty
                 new_param = Parameter(vec.view_as(param), requires_grad=False)
                 param_list.append(new_param)
             self.params_torch.append(param_list)
@@ -75,6 +81,11 @@ class DistributedModule():
         for item in atoms[:-1]:
             model = getattr(model, item)
         setattr(model, atoms[-1], new_param)
+        # if atoms[-1] == 'weight':
+        #     model.weight.copy_(new_param)
+        # else atoms[-1] == 'bias':
+        #     model.bias.copy_(new_param)
+        # pass
         
     def norm(self, node, *args, **kw):
         return self.params_vec[node].norm(*args, **kw)
@@ -82,22 +93,22 @@ class DistributedModule():
     def norm_avg(self, node_list=None, *args, **kw):
         return self.get_avg_param(node_list=node_list).norm()
     
-    def init_grads_vec(self):
-        self.avg_grad = torch.zeros(self.model_size, dtype=FEATURE_TYPE)
-        self.grads_vec = torch.zeros_like(self.params_vec)
+    # def init_grads_vec(self):
+    #     self.avg_grad = torch.zeros(self.model_size, dtype=FEATURE_TYPE)
+    #     self.grads_vec = torch.zeros_like(self.params_vec)
         
-        for node in range(self.node_size+1):
-            cumulated_param = 0
-            for (param_idx, param) in enumerate(self.model.parameters()):
-                param_size = param.nelement()
-                beg, end = cumulated_param, cumulated_param + param.nelement()
-                cumulated_param += param_size
+    #     for node in range(self.node_size+1):
+    #         cumulated_param = 0
+    #         for (param_idx, param) in enumerate(self.model.parameters()):
+    #             param_size = param.nelement()
+    #             beg, end = cumulated_param, cumulated_param + param.nelement()
+    #             cumulated_param += param_size
                 
-                if node != self.AVG_MODEL_INDEX:
-                    grad = self.grads_vec[node][beg:end]
-                else:
-                    grad = self.param_avg[beg:end]
+    #             if node != self.AVG_MODEL_INDEX:
+    #                 grad = self.grads_vec[node][beg:end]
+    #             else:
+    #                 grad = self.param_avg[beg:end]
                     
-                grad_param = Parameter(grad.view_as(param), requires_grad=False)
-                self.params_torch[node][param_idx].grad = grad_param
+    #             grad_param = Parameter(grad.view_as(param), requires_grad=False)
+    #             self.params_torch[node][param_idx].grad = grad_param
         
