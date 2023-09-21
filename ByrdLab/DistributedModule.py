@@ -1,5 +1,5 @@
 
-from ByrdLab import FEATURE_TYPE
+from ByrdLab import FEATURE_TYPE, DEVICE
 import torch
 from torch.nn.parameter import Parameter
 from ByrdLab.library.tool import get_model_param
@@ -10,7 +10,7 @@ class DistributedModule():
    
     def __init__(self, model, node_size):
         
-        self.model = model
+        self.model = model.to(DEVICE)
         self.active_node = -1
         self.AVG_MODEL_INDEX = node_size
         self.node_size = node_size
@@ -20,10 +20,10 @@ class DistributedModule():
         model_size = get_model_param(model, use_str=False)
         self.model_size = model_size
         self.params_vec = torch.zeros([node_size, model_size],
-                                      dtype=FEATURE_TYPE)
-        self.param_avg = torch.zeros(model_size, dtype=FEATURE_TYPE)
+                                      dtype=FEATURE_TYPE).to(DEVICE)
+        self.param_avg = torch.zeros(model_size, dtype=FEATURE_TYPE).to(DEVICE)
         self.grads_vec = None
-        
+
         # model parameters in the form of torch.nn.parameter.Parameter
         self.params_torch = []
         for node in range(node_size+1):
@@ -112,3 +112,5 @@ class DistributedModule():
     #             grad_param = Parameter(grad.view_as(param), requires_grad=False)
     #             self.params_torch[node][param_idx].grad = grad_param
         
+
+

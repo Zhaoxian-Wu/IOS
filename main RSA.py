@@ -143,7 +143,7 @@ record_in_file = not args.without_record
 if args.data_partition == 'iid':
     penalty = 0.001
 elif args.data_partition == 'noniid':
-    penalty = 0.5
+    penalty = 0.1
 else:
     penalty = 0.5
     

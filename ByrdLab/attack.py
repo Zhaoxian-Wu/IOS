@@ -232,7 +232,8 @@ class D_sample_duplicate(decentralizedAttack):
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbors = self.graph.byzantine_neighbors[node]
-        duplicate_index = rng_pack.random.choice(honest_neighbors)
+        # duplicate_index = rng_pack.random.choice(honest_neighbors)
+        duplicate_index = self.graph.honest_nodes[0]
         for n in byzantine_neigbors:
             local_models[n].copy_(local_models[duplicate_index])
         

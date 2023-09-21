@@ -3,7 +3,7 @@ import itertools
 import math
 
 import torch
-from ByrdLab import FEATURE_TYPE
+from ByrdLab import FEATURE_TYPE, DEVICE
 from scipy import stats
 
 from ByrdLab.library.tool import MH_rule
@@ -162,11 +162,24 @@ def brute(gradients, byzantine_size, **kwargs):
     return sum(gradients[i] for i in sel_iset).div_(len(gradients) - byzantine_size)
 
 
+# def trimmed_mean(wList, byzantine_size):
+#     node_size = wList.size(0)
+#     proportion_to_cut = byzantine_size / node_size
+#     tm_np = stats.trim_mean(wList, proportion_to_cut, axis=0)
+#     return torch.from_numpy(tm_np)
+
+
 def trimmed_mean(wList, byzantine_size):
-    node_size = wList.size(0)
-    proportion_to_cut = byzantine_size / node_size
-    tm_np = stats.trim_mean(wList, proportion_to_cut, axis=0)
-    return torch.from_numpy(tm_np)
+    # 将张量按某个维度排序
+    sorted_wList, _ = torch.sort(wList, dim=0)
+    
+    # 对排序后的张量进行修剪
+    trimmed_data = sorted_wList[byzantine_size:-byzantine_size, :]
+    
+    # 计算修剪后的均值
+    tm = torch.mean(trimmed_data, dim=0)
+    
+    return tm
 
 
 def remove_outliers(wList, byzantine_size):
@@ -258,6 +271,7 @@ class D_meanW(DecentralizedAggregation):
     def __init__(self, graph):
         super().__init__(name='meanW', graph=graph)
         self.W = MH_rule(graph)
+        self.W = self.W.to(DEVICE)
 
     def run(self, local_models, node):
         return torch.tensordot(self.W[node], local_models, dims=1)
@@ -374,7 +388,7 @@ class D_ios(DecentralizedAggregation):
                 name = f'IOS_{byz_cnt}'
         super().__init__(name=name, graph=graph)
         node_size = graph.number_of_nodes()
-        self.W = torch.eye(node_size, dtype=FEATURE_TYPE)
+        self.W = torch.eye(node_size, dtype=FEATURE_TYPE).to(DEVICE)
         self.exact_byz_cnt = exact_byz_cnt
         self.Byz_cnt = byz_cnt
         for i in range(node_size):

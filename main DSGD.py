@@ -8,7 +8,7 @@ from ByrdLab.aggregation import (D_bulyan, D_faba, D_geometric_median, D_Krum,
 from ByrdLab.attack import (D_alie, D_gaussian, D_isolation_weight,
                             D_sample_duplicate, D_sign_flipping,
                             D_zero_sum, D_zero_value)
-from ByrdLab.decentralizedAlgorithm import DSGD
+from ByrdLab.decentralizedAlgorithm import DSGD, DSGD_MSG
 from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle
 from ByrdLab.library.cache_io import dump_file_in_cache
 from ByrdLab.library.dataset import ijcnn, mnist
@@ -34,6 +34,7 @@ parser.add_argument('--seed', type=int, default=100)
 
 parser.add_argument('--without-record', action='store_true',
                     help='If specifed, no file of running record and log will be left')
+parser.add_argument('--step-agg', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -202,9 +203,19 @@ mark_on_title = ''
 fix_seed = not args.no_fixed_seed
 seed = args.seed
 record_in_file = not args.without_record
+step_agg = args.step_agg
 
 # initilize optimizer
-env = DSGD(aggregation=aggregation, graph=graph, attack=attack,
+# env = DSGD(aggregation=aggregation, graph=graph, attack=attack,
+#            weight_decay=task.weight_decay, data_package=task.data_package,
+#            model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
+#            initialize_fn=task.initialize_fn,
+#            get_train_iter=task.get_train_iter,
+#            get_test_iter=task.get_test_iter,
+#            partition_cls=partition_cls, lr_ctrl=lr_ctrl,
+#            fix_seed=fix_seed, seed=seed,
+#            **task.super_params)
+env = DSGD_MSG(aggregation=aggregation, graph=graph, attack=attack, step_agg = step_agg,
            weight_decay=task.weight_decay, data_package=task.data_package,
            model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
            initialize_fn=task.initialize_fn,

@@ -152,7 +152,7 @@ class ErdosRenyi(Graph):
             graph = nx.fast_gnp_random_graph(node_size, connected_p, seed=rng)
             valid = is_valid(graph)
         
-        byzantine_nodes = rng.sample(graph.nodes(), byzantine_size)
+        byzantine_nodes = rng.sample(list(graph.nodes()), byzantine_size)
         honest_nodes = [i for i in graph.nodes() if i not in byzantine_nodes]
         name = f'ER_n={node_size}_b={byzantine_size}_p={connected_p}'
         if seed is not None:
