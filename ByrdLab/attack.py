@@ -4,7 +4,7 @@ import random
 import scipy.stats
 import torch
 
-from ByrdLab import FEATURE_TYPE
+from ByrdLab import FEATURE_TYPE, DEVICE
 from ByrdLab.library.RandomNumberGenerator import RngPackage
 from ByrdLab.library.tool import MH_rule
 
@@ -32,14 +32,14 @@ def sign_flipping(messages, honest_nodes, byzantine_nodes, scale,
         messages[node].add_(noise, alpha=noise_scale)
              
 def get_model_control(messages, honest_nodes, byzantine_nodes, target_message):
-    s = torch.zeros(messages.size(1), dtype=FEATURE_TYPE)
+    s = torch.zeros(messages.size(1), dtype=FEATURE_TYPE).to(DEVICE)
     for node in honest_nodes:
         s.add_(messages[node])
     melicious_message = (target_message*len(honest_nodes)-s) / len(byzantine_nodes)
     return melicious_message
 
 def get_model_control_weight(messages, honest_nodes, byzantine_nodes, target_message, weights):
-    s = torch.zeros(messages.size(1), dtype=FEATURE_TYPE)
+    s = torch.zeros(messages.size(1), dtype=FEATURE_TYPE).to(DEVICE)
     for node in honest_nodes:
         s.add_(messages[node], alpha=weights[node])
     byzantine_weight = weights[byzantine_nodes].sum()
@@ -143,13 +143,13 @@ class D_gaussian(decentralizedAttack):
         self.scale = scale
     def run(self, local_models, node, rng_pack: RngPackage=RngPackage()):
         honest_neighbors = self.graph.honest_neighbors[node]
-        byzantine_neigbors = self.graph.byzantine_neighbors[node]
-        mu = torch.mean(local_models[honest_neighbors], dim=0)
+        byzantine_neigbors = self.graph.byzantine_neighbors[node] 
+        mu = torch.mean(local_models[honest_neighbors], dim=0) * 100
         for n in byzantine_neigbors:
             local_models[n].copy_(mu)
             noise = torch.randn(local_models.size(1), 
                                 generator=rng_pack.torch,
-                                dtype=FEATURE_TYPE)
+                                dtype=FEATURE_TYPE).to(DEVICE)
             local_models[n].add_(noise, alpha=self.scale)
             
 class D_sign_flipping(decentralizedAttack):
@@ -165,7 +165,7 @@ class D_sign_flipping(decentralizedAttack):
         honest_neighbors = self.graph.honest_neighbors[node]
         byzantine_neigbor = self.graph.byzantine_neighbors[node]
         mu = torch.mean(local_models[honest_neighbors+[node]], dim=0)
-        melicious_message = -self.scale * mu
+        melicious_message = -self.scale * mu * 100
         for n in byzantine_neigbor:
             local_models[n].copy_(melicious_message)
          

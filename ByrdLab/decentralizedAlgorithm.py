@@ -6,6 +6,8 @@ from ByrdLab.library.dataset import EmptySet
 from ByrdLab.library.partition import EmptyPartition
 from ByrdLab.library.measurements import avg_loss_accuracy_dist, consensus_error
 from ByrdLab.library.tool import log
+from ByrdLab.graph import RandomGeometricGraph
+
 
 # alternative: Apatation & Combination
 class DSGD(Dec_Byz_Opt_Env):
@@ -124,6 +126,7 @@ class DSGD_MSG(Dec_Byz_Opt_Env):
         self.construct_rng_pack()
         # initialize
         dist_models = self.construct_dist_models(self.model, self.node_size)
+        # self.graph.show(show_label=True, show_lost=True)
         
         self.initilize_models(dist_models, consensus=self.consensus_init)
         # initial record
@@ -149,6 +152,8 @@ class DSGD_MSG(Dec_Byz_Opt_Env):
         for iteration in range(0, self.total_iterations + 1):
             # lastest learning rate
             lr = self.lr_ctrl.get_lr(iteration)
+            if 'RGG' in self.graph.name:
+                self.graph = RandomGeometricGraph(100, 1, 0.5, seed=300)
             
             # record (totally 'rounds+1' times)
             if iteration % self.display_interval == 0:
@@ -193,6 +198,7 @@ class DSGD_MSG(Dec_Byz_Opt_Env):
                         if param.grad is not None:
                             param.data.mul_(1 - self.weight_decay * lr)
                             param.data.sub_(param.grad, alpha=lr)
+                            pass
             
                             
             # communication and attack

@@ -91,7 +91,8 @@ def avg_loss_accuracy_dist(dist_models, get_test_iter,
             targets = targets.to(DEVICE)
             predictions = model(features)
             loss += loss_fn(predictions, targets).item()
-            accuracy += test_fn(predictions, targets).item()
+            if test_fn is not None:
+                accuracy += test_fn(predictions, targets).item()
             total_sample += len(targets)
         
         penalization = 0

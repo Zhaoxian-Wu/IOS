@@ -174,11 +174,19 @@ def trimmed_mean(wList, byzantine_size):
     sorted_wList, _ = torch.sort(wList, dim=0)
     
     # 对排序后的张量进行修剪
-    trimmed_data = sorted_wList[byzantine_size:-byzantine_size, :]
+    if byzantine_size == 0:
+        trimmed_data = sorted_wList
+    elif byzantine_size > 0:
+        trimmed_data = sorted_wList[byzantine_size:-byzantine_size, :]
+    else:
+        assert False, 'Byzantine size should be equal or larger than 0!'
     
     # 计算修剪后的均值
-    tm = torch.mean(trimmed_data, dim=0)
-    
+    if trimmed_data.nelement() > 0:
+        tm = torch.mean(trimmed_data, dim=0)
+    else:
+        tm = 0
+
     return tm
 
 
