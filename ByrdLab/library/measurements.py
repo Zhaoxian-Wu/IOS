@@ -1,6 +1,6 @@
 import torch
 
-from ByrdLab import TARGET_TYPE
+from ByrdLab import TARGET_TYPE, DEVICE
 
 @torch.no_grad()
 def consensus_error(local_models, honest_nodes):
@@ -86,9 +86,13 @@ def avg_loss_accuracy_dist(dist_models, get_test_iter,
         model = dist_models.model
         test_iter = get_test_iter()
         for features, targets in test_iter:
+            # model.to(DEVICE)
+            features = features.to(DEVICE)
+            targets = targets.to(DEVICE)
             predictions = model(features)
             loss += loss_fn(predictions, targets).item()
-            accuracy += test_fn(predictions, targets).item()
+            if test_fn is not None:
+                accuracy += test_fn(predictions, targets).item()
             total_sample += len(targets)
         
         penalization = 0

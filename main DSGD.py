@@ -1,15 +1,17 @@
 import argparse
+import torch
 
+from ByrdLab import FEATURE_TYPE
 from ByrdLab.aggregation import (D_bulyan, D_faba, D_geometric_median, D_Krum, 
                                  D_ios_equal_neigbor_weight, D_trimmed_mean,
                                  D_meanW, D_median, D_no_communication,
                                  D_remove_outliers, D_self_centered_clipping,
-                                 D_mKrum, D_centered_clipping, D_ios)
+                                 D_mKrum, D_centered_clipping, D_ios, D_brute)
 from ByrdLab.attack import (D_alie, D_gaussian, D_isolation_weight,
                             D_sample_duplicate, D_sign_flipping,
                             D_zero_sum, D_zero_value)
-from ByrdLab.decentralizedAlgorithm import DSGD
-from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle
+from ByrdLab.decentralizedAlgorithm import DSGD, DSGD_MSG
+from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle, LineGraph, RandomGeometricGraph
 from ByrdLab.library.cache_io import dump_file_in_cache
 from ByrdLab.library.dataset import ijcnn, mnist
 from ByrdLab.library.learnRateController import ladder_lr, one_over_sqrt_k_lr
@@ -18,6 +20,7 @@ from ByrdLab.library.partition import (LabelSeperation, TrivalPartition,
 from ByrdLab.library.tool import log
 from ByrdLab.tasks.logisticRegression import LogisticRegressionTask
 from ByrdLab.tasks.softmaxRegression import softmaxRegressionTask
+from ByrdLab.tasks.leastSquare import LeastSquareToySet, LeastSquareToyTask
 
 parser = argparse.ArgumentParser(description='Robust Temporal Difference Learning')
     
@@ -34,9 +37,13 @@ parser.add_argument('--seed', type=int, default=100)
 
 parser.add_argument('--without-record', action='store_true',
                     help='If specifed, no file of running record and log will be left')
+parser.add_argument('--step-agg', type=int, default=1)
 
 args = parser.parse_args()
 
+# args.graph = 'RGG'
+# args.attack = 'gaussian'
+# args.lr_ctrl = 'constant'
 
 # run for decentralized algorithm
 # -------------------------------------------
@@ -47,12 +54,23 @@ if args.graph == 'CompleteGraph':
 elif args.graph == 'TwoCastle':
     graph = TwoCastle(k=6, byzantine_size=2, seed=40)
 elif args.graph == 'ER':
-    honest_size = 10
-    byzantine_size = 2
+    honest_size = 100
+    byzantine_size = 1
     node_size = honest_size + byzantine_size
     graph = ErdosRenyi(node_size, byzantine_size, seed=300)
+elif args.graph == 'RGG':
+    honest_size = 100
+    byzantine_size = 1
+    radius = 0.5
+    node_size = honest_size + byzantine_size
+    graph = RandomGeometricGraph(node_size, byzantine_size, radius, seed=300)
 elif args.graph == 'OctopusGraph':
     graph = OctopusGraph(6, 0, 2)
+elif args.graph == 'LineGraph':
+    honest_size = 10000
+    byzantine_size = 1
+    node_size = honest_size + byzantine_size
+    graph = LineGraph(node_size=node_size, byzantine_size=byzantine_size)
 else:
     assert False, 'unknown graph'
     
@@ -68,8 +86,13 @@ if args.attack == 'none':
 
 # dataset = ToySet(set_size=500, dimension=5, fix_seed=True)
 
-data_package = mnist()
-task = softmaxRegressionTask(data_package)
+# data_package = mnist()
+# task = softmaxRegressionTask(data_package)
+
+# w_star = torch.tensor([1], dtype=FEATURE_TYPE)
+# data_package = LeastSquareToySet(set_size=2000, dimension=1, w_star=w_star, noise=0, fix_seed=True)
+data_package = LeastSquareToySet(set_size=10000, dimension=1, noise=0, fix_seed=True)
+task = LeastSquareToyTask(data_package)
 
 # task.super_params['display_interval'] = 20000
 # task.super_params['rounds'] = 10
@@ -96,6 +119,7 @@ elif args.lr_ctrl == 'ladder':
     lr_ctrl = ladder_lr(decreasing_iter_ls, proportion_ls)
 else:
     assert False, 'unknown lr-ctrl'
+
 # ===========================================
     
     
@@ -143,6 +167,8 @@ elif args.aggregation == 'Krum':
     aggregation = D_Krum(graph)
 elif args.aggregation == 'bulyan':
     aggregation = D_bulyan(graph)
+elif args.aggregation == 'brute':
+    aggregation = D_brute(graph)
 elif args.aggregation == 'cc':
     if args.data_partition == 'iid':
         threshold = 0.1
@@ -165,6 +191,7 @@ elif args.aggregation == 'scc':
     # D_self_centered_clipping(graph, threshold_selection='true'),
 else:
     assert False, 'unknown aggregation'
+
 # ===========================================
     
 # -------------------------------------------
@@ -195,6 +222,7 @@ if args.attack == 'none':
     attack_name = 'baseline'
 else:
     attack_name = attack.name
+
 # ===========================================
 
 workspace = []
@@ -202,9 +230,20 @@ mark_on_title = ''
 fix_seed = not args.no_fixed_seed
 seed = args.seed
 record_in_file = not args.without_record
+step_agg = args.step_agg
 
 # initilize optimizer
-env = DSGD(aggregation=aggregation, graph=graph, attack=attack,
+# env = DSGD(aggregation=aggregation, graph=graph, attack=attack,
+#            weight_decay=task.weight_decay, data_package=task.data_package,
+#            model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
+#            initialize_fn=task.initialize_fn,
+#            get_train_iter=task.get_train_iter,
+#            get_test_iter=task.get_test_iter,
+#            partition_cls=partition_cls, lr_ctrl=lr_ctrl,
+#            fix_seed=fix_seed, seed=seed,
+#            **task.super_params)
+
+env = DSGD_MSG(aggregation=aggregation, graph=graph, attack=attack, step_agg = step_agg,
            weight_decay=task.weight_decay, data_package=task.data_package,
            model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
            initialize_fn=task.initialize_fn,

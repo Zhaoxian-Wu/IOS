@@ -1,4 +1,5 @@
 import random
+import torch
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -114,6 +115,7 @@ class Graph():
                                     font_size=font_size)
         
         if not as_subplot:
+            plt.savefig(f'{self.name}.pdf')
             plt.show()
     
     def __getstate__(self):
@@ -143,6 +145,18 @@ class CompleteGraph(Graph):
         super().__init__(name=name, nx_graph=graph,
                                             honest_nodes=honest_nodes,
                                             byzantine_nodes=byzantine_nodes)
+        
+class LineGraph(Graph):
+    def __init__(self, node_size, byzantine_size):
+        assert node_size > byzantine_size
+        graph = nx.path_graph(node_size)
+        
+        honest_nodes = list(range(node_size-byzantine_size))
+        byzantine_nodes = list(range(node_size-byzantine_size, node_size))
+        name = f'Line_n={node_size}_b={byzantine_size}'
+        super().__init__(name=name, nx_graph=graph,
+                                            honest_nodes=honest_nodes,
+                                            byzantine_nodes=byzantine_nodes)
 
 class ErdosRenyi(Graph):
     def __init__(self, node_size, byzantine_size, connected_p=0.7, seed=None):
@@ -152,7 +166,7 @@ class ErdosRenyi(Graph):
             graph = nx.fast_gnp_random_graph(node_size, connected_p, seed=rng)
             valid = is_valid(graph)
         
-        byzantine_nodes = rng.sample(graph.nodes(), byzantine_size)
+        byzantine_nodes = rng.sample(list(graph.nodes()), byzantine_size)
         honest_nodes = [i for i in graph.nodes() if i not in byzantine_nodes]
         name = f'ER_n={node_size}_b={byzantine_size}_p={connected_p}'
         if seed is not None:
@@ -160,6 +174,74 @@ class ErdosRenyi(Graph):
         super().__init__(name = name, nx_graph = graph,
                                          honest_nodes=honest_nodes,
                                          byzantine_nodes=byzantine_nodes)
+        
+class RandomGeometricGraph(Graph):
+    def __init__(self, node_size, byzantine_size, radius, seed=None):
+        rng = random if seed is None else random.Random(seed)
+        valid = False
+        while not valid:
+            graph = nx.random_geometric_graph(node_size, radius, seed=rng)
+            valid = is_valid(graph)
+        
+        # byzantine_nodes = rng.sample(list(graph.nodes()), byzantine_size)
+        # honest_nodes = [i for i in graph.nodes() if i not in byzantine_nodes]
+        honest_nodes = list(range(node_size-byzantine_size))
+        byzantine_nodes = list(range(node_size-byzantine_size, node_size))
+        name = f'RGG_n={node_size}_b={byzantine_size}_radius={radius}'
+        if seed is not None:
+            name = name + f'_seed={seed}'
+        super().__init__(name = name, nx_graph = graph,
+                                         honest_nodes=honest_nodes,
+                                         byzantine_nodes=byzantine_nodes)
+        self.radius = radius
+        self.P = self.Prob_matrix() 
+        self.neighbors, self.honest_neighbors, self.byzantine_neighbors, self.neighbor_sizes, self.honest_sizes, self.byzantine_sizes = self.time_varying_graph()
+
+    def Prob_matrix(self, k=0.7):
+        nodes = self.nx_graph.nodes(data=True)
+        P = torch.zeros((self.node_size, self.node_size))   
+        for u, du in nodes:
+            pu = du['pos']
+            for v, dv in nodes:
+                pv = dv['pos']
+                d = sum((a - b) ** 2 for a, b in zip(pu, pv))
+                prob = k ** ((d / self.radius ** 2) ** 2)
+                P[u][v] = prob
+        return P
+    
+    def time_varying_graph(self):
+        neighbors = self.neighbors.copy()
+        honest_neighbors = self.honest_neighbors.copy()
+        byzantine_neighbors = self.byzantine_neighbors.copy()
+        # neighbor_sizes = []
+        # honest_sizes = []
+        # byzantine_sizes = []
+        for i, j in self.nx_graph.edges():
+            if random.random() >= self.P[i][j]:
+                neighbors[i].remove(j)
+                neighbors[j].remove(i)
+                if j in self.honest_nodes:
+                    honest_neighbors[i].remove(j)
+                elif j in self.byzantine_nodes:
+                    byzantine_neighbors[i].remove(j)
+                if i in self.honest_nodes:
+                    honest_neighbors[j].remove(i)
+                elif i in self.byzantine_nodes:
+                    byzantine_neighbors[j].remove(i)
+        
+        # neighbor size list
+        honest_sizes = [
+            len(node_list) for node_list in honest_neighbors
+        ]
+        byzantine_sizes = [
+            len(node_list) for node_list in byzantine_neighbors
+        ]
+        neighbor_sizes = [
+            honest_sizes[node] + byzantine_sizes[node] 
+            for node in self.nx_graph.nodes()
+        ]
+
+        return neighbors, honest_neighbors, byzantine_neighbors, neighbor_sizes, honest_sizes, byzantine_sizes      
     
 class TwoCastle(Graph):
     '''
@@ -182,7 +264,7 @@ class TwoCastle(Graph):
         edges_list = [(i, j) for i in range(k)
                       for j in range(k, 2*k) if i + k != j]
         graph.add_edges_from(edges_list)
-        byzantine_nodes = rng.sample(graph.nodes(), byzantine_size)
+        byzantine_nodes = rng.sample(list(graph.nodes()), byzantine_size)
         honest_nodes = [i for i in graph.nodes() if i not in byzantine_nodes]
         name = f'TwoCastle_k={k}_b={byzantine_size}'
         if seed is not None:

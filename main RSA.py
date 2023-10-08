@@ -4,7 +4,7 @@ from ByrdLab.attack import (D_alie, D_gaussian, D_isolation_weight,
                             D_sample_duplicate, D_sign_flipping,
                             D_zero_sum, D_zero_value)
 from ByrdLab.decentralizedAlgorithm import RSA_algorithm
-from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle
+from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle, LineGraph
 from ByrdLab.library.cache_io import dump_file_in_cache
 from ByrdLab.library.dataset import mnist
 from ByrdLab.library.learnRateController import ladder_lr, one_over_sqrt_k_lr
@@ -12,6 +12,7 @@ from ByrdLab.library.partition import (LabelSeperation, TrivalPartition,
                                    iidPartition)
 from ByrdLab.library.tool import log
 from ByrdLab.tasks.softmaxRegression import softmaxRegressionTask
+from ByrdLab.tasks.leastSquare import LeastSquareToySet, LeastSquareToyTask
 
 parser = argparse.ArgumentParser(description='Robust Temporal Difference Learning')
     
@@ -40,10 +41,15 @@ if args.graph == 'CompleteGraph':
 elif args.graph == 'TwoCastle':
     graph = TwoCastle(k=6, byzantine_size=2, seed=40)
 elif args.graph == 'ER':
-    honest_size = 10
+    honest_size = 100
     byzantine_size = 2
     node_size = honest_size + byzantine_size
     graph = ErdosRenyi(node_size, byzantine_size, seed=300)
+elif args.graph == 'LineGraph':
+    honest_size = 2000
+    byzantine_size = 1
+    node_size = honest_size + byzantine_size
+    graph = LineGraph(node_size=node_size, byzantine_size=byzantine_size)
 elif args.graph == 'OctopusGraph':
     graph = OctopusGraph(6, 0, 2)
 else:
@@ -58,8 +64,12 @@ if args.attack == 'none':
 # -------------------------------------------
 # dataset = ijcnn()
 # dataset = ToySet(set_size=500, dimension=5, fix_seed=True)
-data_package = mnist()
-task = softmaxRegressionTask(data_package)
+# data_package = mnist()
+# task = softmaxRegressionTask(data_package)
+
+data_package = LeastSquareToySet(set_size=2000, dimension=1, noise=0, fix_seed=True)
+task = LeastSquareToyTask(data_package)
+
 # task.super_params['display_interval'] = 20000
 # task.super_params['rounds'] = 10
 # task.super_params['lr'] = 0.004
@@ -143,7 +153,7 @@ record_in_file = not args.without_record
 if args.data_partition == 'iid':
     penalty = 0.001
 elif args.data_partition == 'noniid':
-    penalty = 0.5
+    penalty = 0.1
 else:
     penalty = 0.5
     
