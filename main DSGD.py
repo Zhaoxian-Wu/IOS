@@ -1,19 +1,18 @@
-import argparse
-import torch
+from argsParser import args
 
 from ByrdLab import FEATURE_TYPE
 from ByrdLab.aggregation import (D_bulyan, D_faba, D_geometric_median, D_Krum, 
                                  D_ios_equal_neigbor_weight, D_trimmed_mean,
                                  D_meanW, D_median, D_no_communication,
                                  D_remove_outliers, D_self_centered_clipping,
-                                 D_mKrum, D_centered_clipping, D_ios, D_brute)
+                                 D_mKrum, D_centered_clipping, D_ios, D_brute, D_mean)
 from ByrdLab.attack import (D_alie, D_gaussian, D_isolation_weight,
                             D_sample_duplicate, D_sign_flipping,
-                            D_zero_sum, D_zero_value)
-from ByrdLab.decentralizedAlgorithm import DSGD, DSGD_MSG
+                            D_zero_sum, D_zero_value, D_label_flipping, D_label_random, D_feature_label_random, D_furthest_label_flipping)
+from ByrdLab.decentralizedAlgorithm import DSGD, DSGD_MSG, DSGD_MSG_under_DPA
 from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle, LineGraph, RandomGeometricGraph
 from ByrdLab.library.cache_io import dump_file_in_cache
-from ByrdLab.library.dataset import ijcnn, mnist
+from ByrdLab.library.dataset import ijcnn, mnist, fashionmnist, cifar10
 from ByrdLab.library.learnRateController import ladder_lr, one_over_sqrt_k_lr
 from ByrdLab.library.partition import (LabelSeperation, TrivalPartition,
                                    iidPartition)
@@ -21,61 +20,67 @@ from ByrdLab.library.tool import log
 from ByrdLab.tasks.logisticRegression import LogisticRegressionTask
 from ByrdLab.tasks.softmaxRegression import softmaxRegressionTask
 from ByrdLab.tasks.leastSquare import LeastSquareToySet, LeastSquareToyTask
+from ByrdLab.tasks.neuralNetwork import NeuralNetworkTask
 
-parser = argparse.ArgumentParser(description='Robust Temporal Difference Learning')
+# parser = argparse.ArgumentParser(description='Robust Temporal Difference Learning')
     
-# Arguments
-parser.add_argument('--graph', type=str, default='CompleteGraph')
-parser.add_argument('--aggregation', type=str, default='mean')
-parser.add_argument('--attack', type=str, default='none')
-parser.add_argument('--data-partition', type=str, default='iid')
-parser.add_argument('--lr-ctrl', type=str, default='1/sqrt k')
+# # Arguments
+# parser.add_argument('--graph', type=str, default='CompleteGraph')
+# parser.add_argument('--aggregation', type=str, default='mean')
+# parser.add_argument('--attack', type=str, default='none')
+# parser.add_argument('--data-partition', type=str, default='iid')
+# parser.add_argument('--lr-ctrl', type=str, default='1/sqrt k')
 
-parser.add_argument('--no-fixed-seed', action='store_true',
-                    help="If specifed, the random seed won't be fixed")
-parser.add_argument('--seed', type=int, default=100)
+# parser.add_argument('--no-fixed-seed', action='store_true',
+#                     help="If specifed, the random seed won't be fixed")
+# parser.add_argument('--seed', type=int, default=100)
 
-parser.add_argument('--without-record', action='store_true',
-                    help='If specifed, no file of running record and log will be left')
-parser.add_argument('--step-agg', type=int, default=1)
+# parser.add_argument('--without-record', action='store_true',
+#                     help='If specifed, no file of running record and log will be left')
+# parser.add_argument('--step-agg', type=int, default=1)
+# parser.add_argument('--gpu', type=int, default=0)
 
-args = parser.parse_args()
+# args = parser.parse_args()
+# args.gpu = 1 
+# os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
-# args.graph = 'RGG'
-# args.attack = 'gaussian'
-# args.lr_ctrl = 'constant'
+
+args.graph = 'CompleteGraph'
+# args.attack = 'label_flipping'
+args.lr_ctrl = 'ladder'
+args.data_partition = 'noniid'
+# args.aggregation = 'ios' 
 
 # run for decentralized algorithm
 # -------------------------------------------
 # define graph
 # -------------------------------------------
 if args.graph == 'CompleteGraph':
-    graph = CompleteGraph(node_size=12, byzantine_size=2)
+    graph = CompleteGraph(node_size=10, byzantine_size=0)
 elif args.graph == 'TwoCastle':
     graph = TwoCastle(k=6, byzantine_size=2, seed=40)
 elif args.graph == 'ER':
-    honest_size = 100
-    byzantine_size = 1
+    honest_size = 10
+    byzantine_size = 0
     node_size = honest_size + byzantine_size
     graph = ErdosRenyi(node_size, byzantine_size, seed=300)
 elif args.graph == 'RGG':
-    honest_size = 100
-    byzantine_size = 1
-    radius = 0.5
-    node_size = honest_size + byzantine_size
-    graph = RandomGeometricGraph(node_size, byzantine_size, radius, seed=300)
+    graph = RandomGeometricGraph(node_size=14, byzantine_size=4, radius=1, seed=300)
 elif args.graph == 'OctopusGraph':
     graph = OctopusGraph(6, 0, 2)
 elif args.graph == 'LineGraph':
-    honest_size = 10000
+    honest_size = 100
     byzantine_size = 1
     node_size = honest_size + byzantine_size
     graph = LineGraph(node_size=node_size, byzantine_size=byzantine_size)
 else:
     assert False, 'unknown graph'
     
+# If the Byzantine nodes present, they will do the attack even they do not change their model 
+# over time. The presence of Byzantine nodes is an attack
 if args.attack == 'none':
     graph = graph.honest_subgraph()
+
 # ===========================================
 
 # -------------------------------------------
@@ -89,10 +94,16 @@ if args.attack == 'none':
 # data_package = mnist()
 # task = softmaxRegressionTask(data_package)
 
+# data_package = fashionmnist()
+# task = softmaxRegressionTask(data_package)
+
+data_package = cifar10()
+task = NeuralNetworkTask(data_package, batch_size=32)
+
 # w_star = torch.tensor([1], dtype=FEATURE_TYPE)
 # data_package = LeastSquareToySet(set_size=2000, dimension=1, w_star=w_star, noise=0, fix_seed=True)
-data_package = LeastSquareToySet(set_size=10000, dimension=1, noise=0, fix_seed=True)
-task = LeastSquareToyTask(data_package)
+# data_package = LeastSquareToySet(set_size=100, dimension=1, noise=0, fix_seed=True)
+# task = LeastSquareToyTask(data_package)
 
 # task.super_params['display_interval'] = 20000
 # task.super_params['rounds'] = 10
@@ -114,8 +125,8 @@ elif args.lr_ctrl == '1/sqrt k':
     # lr_ctrl = one_over_sqrt_k_lr(total_iteration=total_iterations,
     #                              a=math.sqrt(1001), b=1000)
 elif args.lr_ctrl == 'ladder':
-    decreasing_iter_ls = [30000, 60000]
-    proportion_ls = [0.5, 0.2]
+    decreasing_iter_ls = [5000, 10000, 15000]
+    proportion_ls = [0.3, 0.2, 0.1]
     lr_ctrl = ladder_lr(decreasing_iter_ls, proportion_ls)
 else:
     assert False, 'unknown lr-ctrl'
@@ -145,6 +156,7 @@ if args.aggregation == 'no-comm':
 elif args.aggregation == 'mean':
     # D_mean(graph),
     aggregation = D_meanW(graph)
+    # aggregation = D_mean(graph)
 elif args.aggregation == 'ios':
     aggregation = D_ios(graph)
 elif args.aggregation == 'ios_exact_byz_cnt':
@@ -199,6 +211,14 @@ else:
 # -------------------------------------------
 if args.attack == 'none':
     attack = None
+elif args.attack == 'label_flipping':
+    attack = D_label_flipping(graph)
+elif args.attack == 'label_random':
+    attack = D_label_random(graph)
+elif args.attack == 'feature_label_random':
+    attack = D_feature_label_random(graph)
+elif args.attack == 'furthest_label_flipping':
+    attack = D_furthest_label_flipping(graph)
 elif args.attack == 'sign_flipping':
     attack = D_sign_flipping(graph)
 elif args.attack == 'gaussian':
@@ -243,7 +263,8 @@ step_agg = args.step_agg
 #            fix_seed=fix_seed, seed=seed,
 #            **task.super_params)
 
-env = DSGD_MSG(aggregation=aggregation, graph=graph, attack=attack, step_agg = step_agg,
+if 'label' in attack_name:
+    env = DSGD_MSG_under_DPA(aggregation=aggregation, graph=graph, attack=attack, step_agg = step_agg,
            weight_decay=task.weight_decay, data_package=task.data_package,
            model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
            initialize_fn=task.initialize_fn,
@@ -252,6 +273,18 @@ env = DSGD_MSG(aggregation=aggregation, graph=graph, attack=attack, step_agg = s
            partition_cls=partition_cls, lr_ctrl=lr_ctrl,
            fix_seed=fix_seed, seed=seed,
            **task.super_params)
+else:
+    env = DSGD_MSG(aggregation=aggregation, graph=graph, attack=attack, step_agg = step_agg,
+           weight_decay=task.weight_decay, data_package=task.data_package,
+           model=task.model, loss_fn=task.loss_fn, test_fn=task.test_fn,
+           initialize_fn=task.initialize_fn,
+           get_train_iter=task.get_train_iter,
+           get_test_iter=task.get_test_iter,
+           partition_cls=partition_cls, lr_ctrl=lr_ctrl,
+           fix_seed=fix_seed, seed=seed,
+           **task.super_params)
+
+
 
 title = '{}_{}_{}'.format(env.name, attack_name, aggregation.name)
 

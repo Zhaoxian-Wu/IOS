@@ -190,8 +190,8 @@ class StackedTorchDataPackage(DataPackage):
             test_features = torch.stack(
                 [feature for feature, _ in torch_test_set], axis=0
             ).type(FEATURE_TYPE)
-            train_targets = torch_train_set.targets.type(TARGET_TYPE)
-            test_targets = torch_test_set.targets.type(TARGET_TYPE)
+            train_targets = torch.tensor(torch_train_set.targets).type(TARGET_TYPE)
+            test_targets = torch.tensor(torch_test_set.targets).type(TARGET_TYPE)
             num_classes = len(torch_train_set.classes)
             cache = {
                 'train_features': train_features,
@@ -229,6 +229,62 @@ def get_mnist():
 class mnist(StackedTorchDataPackage):
     def __init__(self):
         super().__init__('mnist', get_mnist)
+
+
+def get_fashion_mnist():
+    from torchvision import transforms
+    from torchvision.datasets import FashionMNIST
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.ConvertImageDtype(dtype=ByrdLab.FEATURE_TYPE),
+        # transforms.Normalize(mean=[0.1307],std=[0.3081])
+        transforms.Normalize(mean=[0.5],std=[0.5])
+        # transforms.Lambda(lambda x: x / 255)
+    ])
+    root = 'dataset'
+    torch_train_dataset = FashionMNIST(root=root, train=True,
+                                transform=transform, download=True)
+    torch_test_dataset = FashionMNIST(root=root, train=False,
+                              transform=transform, download=True)
+    return torch_train_dataset, torch_test_dataset
+
+
+class fashionmnist(StackedTorchDataPackage):
+    def __init__(self):
+        super().__init__('fashionmnist', get_fashion_mnist)
+
+def get_cifar10():
+    from torchvision import transforms
+    from torchvision.datasets import CIFAR10
+    transform_train = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.ConvertImageDtype(dtype=ByrdLab.FEATURE_TYPE),
+        transforms.RandomCrop(32, padding=4),  # 先四周填充0，在吧图像随机裁剪成32*32
+        transforms.RandomHorizontalFlip(),
+        # transforms.Normalize(mean=[0.1307],std=[0.3081])
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),#transforms.Normalize(mean=[0.5],std=[0.5])
+        # transforms.Lambda(lambda x: x / 255)
+    ])
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.ConvertImageDtype(dtype=ByrdLab.FEATURE_TYPE),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    # target_transform = transforms.Compose([
+    #     transforms.ToTensor(),
+    #     #transforms.ConvertImageDtype(dtype=ByrdLab.TARGET_TYPE)
+    # ])
+    root = 'dataset'
+    torch_train_dataset = CIFAR10(root=root, train=True,
+                                transform=transform_train,  download=True)
+    torch_test_dataset = CIFAR10(root=root, train=False,
+                              transform=transform_test,  download=True)
+    return torch_train_dataset, torch_test_dataset
+
+
+class cifar10(StackedTorchDataPackage):
+    def __init__(self):
+        super().__init__('cifar10', get_cifar10)
 
 
 class ClassificationToySet(StackedDataSet):
@@ -287,6 +343,21 @@ class DistributedDataSets():
         return self.subsets[index]
     def entire_set(self):
         return self.dataset
+    
+class DistributedDataSets_over_honest_and_byz_nodes():
+    def __init__(self, dataset, partition_cls, nodes,
+                 rng_pack: RngPackage=RngPackage()):
+        self.dataset = dataset
+        
+        self.partition = partition_cls(dataset, len(nodes),
+                                       rng_pack=rng_pack)
+        self.subsets = self.partition.get_subsets(dataset)
+        pass
+    def __getitem__(self, index):
+        return self.subsets[index]
+    def entire_set(self):
+        return self.dataset
+ 
     
     
 class EmptySet(StackedDataSet):

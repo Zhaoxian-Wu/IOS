@@ -301,4 +301,64 @@ class D_alie(decentralizedAttack):
         melicious_message = mu + self.scale_table[node]*std
         for n in byzantine_neigbors:
             local_models[n].copy_(melicious_message)
+
+# Data Poisoning Attack
+class decentralizedDataPoisoningAttack():
+    def __init__(self, name, graph):
+        self.graph = graph
+        self.name = name
+    def run(self, features, targets, rng_pack: RngPackage=RngPackage(), model=None):
+        raise NotImplementedError
+
         
+class D_label_flipping(decentralizedDataPoisoningAttack):
+
+    def __init__(self, graph):
+        super().__init__(name='label_flipping', graph=graph)
+    
+    def run(self, features, targets, model=None, rng_pack: RngPackage = RngPackage()):
+        features = features
+        # targets = 9 - targets
+        # targets = 9 - targets
+        for i in range(len(targets)):
+            if targets[i] == 0:
+                targets[i] = 2
+            elif targets[i] == 1:
+                targets[i] = 9
+            elif targets[i] == 5:
+                targets[i] = 3 
+        return features, targets
+    
+class D_label_random(decentralizedDataPoisoningAttack):
+
+    def __init__(self, graph):
+        super().__init__(name='label_random', graph=graph)
+
+    def run(self, features, targets, model=None, rng_pack: RngPackage = RngPackage()):
+        features = features
+        targets = torch.randint(0, 9, size=targets.shape, generator=rng_pack.torch)
+        return features, targets
+    
+class D_feature_label_random(decentralizedDataPoisoningAttack):
+
+    def __init__(self, graph):
+        super().__init__(name='feature_label_random', graph=graph)
+
+    def run(self, features, targets, model=None, rng_pack: RngPackage = RngPackage()):
+        features = 2 * torch.rand(size=features.shape, generator=rng_pack.torch, dtype=FEATURE_TYPE) - 1
+        targets = torch.randint(0, 9, size=targets.shape, generator=rng_pack.torch)
+        return features, targets
+    
+class D_furthest_label_flipping(decentralizedDataPoisoningAttack):
+
+    def __init__(self, graph):
+        super().__init__(name='furthest_label_flipping', graph=graph)
+
+    def run(self, features, targets, model=None, rng_pack: RngPackage = RngPackage()):
+        size = int(len(targets) / 10)
+        for feature, target in zip(features, targets):
+            feature = feature.view(feature.size(0), -1).squeeze().clone()
+            distance = torch.mv(model.linear.weight.data, feature) + model.linear.bias.data
+            _, prediction_cls = torch.max(distance, dim=0)
+            target = prediction_cls
+        return features, targets

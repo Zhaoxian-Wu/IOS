@@ -5,7 +5,7 @@ import torch
 from ByrdLab.library.RandomNumberGenerator import RngPackage
 from ByrdLab.library.dataset import DataPackage
 
-from ByrdLab.library.initialize import RandomInitialize
+from ByrdLab.library.initialize import RandomInitialize, ZeroInitialize
 from ByrdLab.library.measurements import multi_classification_accuracy
 from ByrdLab.library.tool import adapt_model_type
 from ByrdLab.tasks import Task
@@ -18,7 +18,7 @@ class softmaxRegression_model(torch.nn.Module):
     def forward(self, features):
         features = features.view(features.size(0), -1)
         return self.linear(features)
-
+    
 def softmax_regression_loss(predictions, targets):
     loss = torch.nn.functional.cross_entropy(
                 predictions, targets.type(torch.long).view(-1))
@@ -58,9 +58,9 @@ class softmaxRegressionTask(Task):
             'rounds': 100,
             'display_interval': 500,
             'batch_size': batch_size,
-            'test_batch_size': 900,
-            
-            'lr': 9e-1,
+            # 'test_batch_size': 900,
+            'test_batch_size': 10000,
+            'lr': 9e-2,
         }
         
         test_set = data_package.test_set
@@ -70,10 +70,11 @@ class softmaxRegressionTask(Task):
                                  batch_size=super_params['test_batch_size'])
         super().__init__(weight_decay, data_package, model, 
                          loss_fn=loss_fn, test_fn=test_fn,
-                         initialize_fn=RandomInitialize(),
+                        #  initialize_fn=RandomInitialize(),
+                        initialize_fn=ZeroInitialize(),
                          get_train_iter=get_train_iter,
                          get_test_iter=get_test_iter,
                          super_params=super_params,
                          name=f'SR_{data_package.name}',
                          model_name='softmaxRegression')
-     
+        

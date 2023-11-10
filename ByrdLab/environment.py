@@ -1,5 +1,5 @@
 from ByrdLab.DistributedModule import DistributedModule
-from ByrdLab.library.dataset import DataPackage, DistributedDataSets
+from ByrdLab.library.dataset import DataPackage, DistributedDataSets, DistributedDataSets_over_honest_and_byz_nodes
 from ByrdLab.library.partition import Partition, TrivalPartition
 from ByrdLab.library.learnRateController import constant_lr
 from ByrdLab.library.RandomNumberGenerator import RngPackage
@@ -142,7 +142,8 @@ class Byz_Env(AlgorithmEnvironment):
             self.byzantine_size = len(byzantine_nodes)
         self.nodes = sorted(self.honest_nodes + self.byzantine_nodes)
         self.node_size = self.honest_size + self.byzantine_size
-        
+
+        # Byzantine nodes can act like honest nodes 
         assert self.byzantine_size == 0 or attack != None
         self.attack = attack
 
@@ -157,7 +158,8 @@ class Dist_Model_Env(Byz_Env):
     def initilize_models(self, dist_models, consensus=False):
         if self.initialize_fn is None:
             return
-        for node in self.honest_nodes:
+        # for node in self.honest_nodes:
+        for node in self.nodes:
             dist_models.activate_model(node)
             model = dist_models.model
             seed = self.seed if consensus else node + self.seed
@@ -170,12 +172,18 @@ class Dist_Dataset_Opt_Env(Byz_Env, Opt_Env):
         super().__init__(*args, **kw)
         
         train_set = self.data_package.train_set
-        # ====== distribute dataset ======
-        dist_train_set = DistributedDataSets(dataset=train_set, 
-                                             partition_cls=partition_cls,
-                                             nodes=self.nodes,
-                                             honest_nodes=self.honest_nodes,
-                                             rng_pack=self.rng_pack)
+        # # ====== distribute dataset ======
+        # dist_train_set = DistributedDataSets(dataset=train_set, 
+        #                                      partition_cls=partition_cls,
+        #                                      nodes=self.nodes,
+        #                                      honest_nodes=self.honest_nodes,
+        #                                      rng_pack=self.rng_pack)
+
+        # ====== distribute dataset over honest and byzantine nodes ======
+        dist_train_set = DistributedDataSets_over_honest_and_byz_nodes(dataset=train_set, 
+                                                                       partition_cls=partition_cls,
+                                                                       nodes=self.nodes,
+                                                                       rng_pack=self.rng_pack)
         self.partition_name = dist_train_set.partition.name
         self.dist_train_set = dist_train_set
 

@@ -1,6 +1,8 @@
 import re
 import os
 import pickle
+import torch
+from ByrdLab import DEVICE
  
 __CACHE_DIR__ = 'record'
 __CACHE_PATH__ = os.path.join(os.getcwd(), __CACHE_DIR__)
@@ -19,6 +21,18 @@ def dump_file_in_cache(file_name, content, path_list=[]):
     file_path = get_cache_path(file_name, path_list, create_if_not_exist=True)
     with open(file_path, 'wb') as f:
         pickle.dump(content, f)
+
+def dump_model_in_cache(file_name, model, path_list=[]):
+    file_path = get_cache_path(file_name, path_list, create_if_not_exist=True)
+    with open(file_path, 'wb') as f:
+        torch.save(model, f)
+
+def load_model_in_cache(file_name, path_list=[]):
+    file_path = get_cache_path(file_name, path_list, create_if_not_exist=True)
+    print(file_path)
+    with open(file_path, 'rb') as f:
+        model = torch.load(f)
+    return model
 
 def isfile_in_cache(file_name, path_list=[]):
     file_path = get_cache_path(file_name, path_list)

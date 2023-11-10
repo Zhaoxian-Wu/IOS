@@ -266,6 +266,7 @@ class D_mean(DecentralizedAggregation):
         return neighbor_models.mean(axis=0)
 
 
+
 class D_no_communication(DecentralizedAggregation):
     def __init__(self, graph):
         super().__init__(name='no_communication',

@@ -101,4 +101,5 @@ python draw_octopus.py --task SR_mnist --graph Octopus_head=6_headb=0_handb=2 --
 # Fig. 2
 cd draw_decentralized_one_fig
 python draw.py --task SR_mnist --graph ER_n=12_b=2_p=0.7_seed=300 --partition LabelSeperation --portrait
+# python draw-LF.py --task NeuralNetwork_cifar10 --graph Complete_n=10_b=2 --partition LabelSeperation --portrait
 ```

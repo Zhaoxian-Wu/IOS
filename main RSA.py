@@ -2,8 +2,8 @@ import argparse
 
 from ByrdLab.attack import (D_alie, D_gaussian, D_isolation_weight,
                             D_sample_duplicate, D_sign_flipping,
-                            D_zero_sum, D_zero_value)
-from ByrdLab.decentralizedAlgorithm import RSA_algorithm
+                            D_zero_sum, D_zero_value, D_label_flipping, D_label_random, D_feature_label_random)
+from ByrdLab.decentralizedAlgorithm import RSA_algorithm, RSA_algorithm_under_DPA
 from ByrdLab.graph import CompleteGraph, ErdosRenyi, OctopusGraph, TwoCastle, LineGraph
 from ByrdLab.library.cache_io import dump_file_in_cache
 from ByrdLab.library.dataset import mnist
@@ -31,13 +31,16 @@ parser.add_argument('--without-record', action='store_true',
 
 args = parser.parse_args()
 
+args.attack = 'label_flipping'
+args.graph = 'CompleteGraph'
+args.data_partition = 'noniid'
 
 # run for decentralized algorithm
 # -------------------------------------------
 # define graph
 # -------------------------------------------
 if args.graph == 'CompleteGraph':
-    graph = CompleteGraph(node_size=12, byzantine_size=2)
+    graph = CompleteGraph(node_size=10, byzantine_size=2)
 elif args.graph == 'TwoCastle':
     graph = TwoCastle(k=6, byzantine_size=2, seed=40)
 elif args.graph == 'ER':
@@ -64,11 +67,12 @@ if args.attack == 'none':
 # -------------------------------------------
 # dataset = ijcnn()
 # dataset = ToySet(set_size=500, dimension=5, fix_seed=True)
-# data_package = mnist()
-# task = softmaxRegressionTask(data_package)
 
-data_package = LeastSquareToySet(set_size=2000, dimension=1, noise=0, fix_seed=True)
-task = LeastSquareToyTask(data_package)
+data_package = mnist()
+task = softmaxRegressionTask(data_package)
+
+# data_package = LeastSquareToySet(set_size=2000, dimension=1, noise=0, fix_seed=True)
+# task = LeastSquareToyTask(data_package)
 
 # task.super_params['display_interval'] = 20000
 # task.super_params['rounds'] = 10
@@ -117,6 +121,12 @@ else:
 # -------------------------------------------
 if args.attack == 'none':
     attack = None
+elif args.attack == 'label_flipping':
+    attack = D_label_flipping(graph)
+elif args.attack == 'label_random':
+    attack = D_label_random(graph)
+elif args.attack == 'feature_label_random':
+    attack = D_feature_label_random(graph)
 elif args.attack == 'sign_flipping':
     attack = D_sign_flipping(graph)
 elif args.attack == 'gaussian':
@@ -158,18 +168,32 @@ else:
     penalty = 0.5
     
 # initilize optimizer
-env = RSA_algorithm(graph=graph, attack=attack,
-                    weight_decay=task.weight_decay,
-                    data_package=task.data_package,
-                    model=task.model,
-                    loss_fn=task.loss_fn, test_fn=task.test_fn,
-                    initialize_fn=task.initialize_fn,
-                    get_train_iter=task.get_train_iter,
-                    get_test_iter=task.get_test_iter,
-                    partition_cls=partition_cls, lr_ctrl=lr_ctrl,
-                    fix_seed=fix_seed, seed=seed,
-                    penalty=penalty,
-                    **task.super_params)
+if 'label' in attack_name:
+    env = RSA_algorithm_under_DPA(graph=graph, attack=attack,
+                                  weight_decay=task.weight_decay,
+                                  data_package=task.data_package,
+                                  model=task.model,
+                                  loss_fn=task.loss_fn, test_fn=task.test_fn,
+                                  initialize_fn=task.initialize_fn,
+                                  get_train_iter=task.get_train_iter,
+                                  get_test_iter=task.get_test_iter,
+                                  partition_cls=partition_cls, lr_ctrl=lr_ctrl,
+                                  fix_seed=fix_seed, seed=seed,
+                                  penalty=penalty,
+                                  **task.super_params)
+else:
+    env = RSA_algorithm(graph=graph, attack=attack,
+                        weight_decay=task.weight_decay,
+                        data_package=task.data_package,
+                        model=task.model,
+                        loss_fn=task.loss_fn, test_fn=task.test_fn,
+                        initialize_fn=task.initialize_fn,
+                        get_train_iter=task.get_train_iter,
+                        get_test_iter=task.get_test_iter,
+                        partition_cls=partition_cls, lr_ctrl=lr_ctrl,
+                        fix_seed=fix_seed, seed=seed,
+                        penalty=penalty,
+                        **task.super_params)
 
 title = '{}_{}'.format(env.name, attack_name)
 

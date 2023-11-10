@@ -144,7 +144,32 @@ class LabelSeperation(HorizotalPartition):
             else:
                 insert_node_ptrs[group_idx] = group_boundary[group_idx]
         return partition
+
+# class LabelSeperation(HorizotalPartition):
+#     def __init__(self, dataset, node_cnt, non_iid_degree=2, *args, **kw):
+#         partition = [[] for _ in range(node_cnt)]
+#         flags = [0]*10
+#         # aux = [[] for _ in range(node_cnt)]
+#         for i, (_, label) in enumerate(dataset):
+#             # if flags[label] != (non_iid_degree-1):
+#             if flags[label] != 1:
+#                 partition[(label+flags[label]) % node_cnt].append(i)
+#                 # aux[(label + flags[label]) % node_cnt].append(label.cpu().numpy().tolist())
+#                 flags[label] += 1
+#             else:
+#                 # partition[(label+non_iid_degree-1) % node_cnt].append(i)
+#                 partition[(label+ 1 ) % node_cnt].append(i)
+#                 # aux[(label + non_iid_degree - 1) % node_cnt].append(label.cpu().numpy().tolist())
+#                 flags[label] = 0
+#         super(LabelSeperation, self).__init__('LabelSeperation', partition)
         
+# class LabelSeperation(HorizotalPartition):
+#     def __init__(self, dataset, node_cnt, *args, **kw):
+#         partition = [[] for _ in range(node_cnt)]
+#         for i, (_, label) in enumerate(dataset):
+#             partition[label % node_cnt].append(i)
+#         super(LabelSeperation, self).__init__('LabelSeperation', partition)
+
         
 class VerticalPartition(Partition):
     def __init__(self, dataset: StackedDataSet, 

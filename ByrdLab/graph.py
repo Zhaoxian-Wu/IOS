@@ -61,7 +61,7 @@ class Graph():
     def honest_subgraph(self, name='', relabel=True):
         nx_subgraph = self.subgraph(self.honest_nodes)
         if name == '':
-            name = self.name
+            name = self.name.replace(f'n={self.node_size}', f'n={self.honest_size}').replace(f'b={self.byzantine_size}', 'b=0')
         if relabel:
             nx_subgraph = nx.convert_node_labels_to_integers(nx_subgraph)
         return Graph(name=name, nx_graph=nx_subgraph, 
@@ -139,8 +139,25 @@ class CompleteGraph(Graph):
         assert node_size > byzantine_size
         graph = nx.complete_graph(node_size)
         
-        honest_nodes = list(range(node_size-byzantine_size))
-        byzantine_nodes = list(range(node_size-byzantine_size, node_size))
+        # honest_nodes = list(range(node_size-byzantine_size))
+        # byzantine_nodes = list(range(node_size-byzantine_size, node_size))
+
+        # all_nodes = list(range(node_size))
+        # byzantine_nodes = list(range(7, 7 + byzantine_size))
+        # honest_nodes = [node for node in all_nodes if node not in byzantine_nodes]
+
+        # all_nodes = list(range(node_size))
+        # byzantine_nodes = [0, 1, 5]
+        # # byzantine_nodes = [5]
+        # honest_nodes = [node for node in all_nodes if node not in byzantine_nodes]
+
+        all_nodes = list(range(node_size))
+        # byzantine_nodes = [1, 3, 5, 7]
+        byzantine_nodes = []
+        honest_nodes = [node for node in all_nodes if node not in byzantine_nodes]
+
+        assert byzantine_size == len(byzantine_nodes)
+
         name = f'Complete_n={node_size}_b={byzantine_size}'
         super().__init__(name=name, nx_graph=graph,
                                             honest_nodes=honest_nodes,
